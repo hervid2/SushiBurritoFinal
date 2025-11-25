@@ -3,6 +3,7 @@
 // ROL: Define el modelo de Sequelize para la tabla 'mesas'.
 //      Este modelo representa una mesa física en el restaurante,
 //      un recurso clave para la gestión de pedidos.
+//      Implementa soft delete mediante paranoid.
 // =================================================================
 
 /**
@@ -38,7 +39,12 @@ export default (sequelize, DataTypes) => {
         // --- Opciones Adicionales del Modelo ---
 
         tableName: 'mesas',
-        timestamps: false // No se usarán las columnas 'createdAt' y 'updatedAt'.
+        // *** CAMBIO CLAVE: Habilitar soft delete ***
+        timestamps: true,
+        paranoid: true,
+        deletedAt: 'deleted_at',
+        createdAt: false,
+        updatedAt: false
     });
 
     // Este modelo será utilizado en 'index.js' para establecer su asociación

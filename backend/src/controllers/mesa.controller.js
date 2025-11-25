@@ -5,6 +5,7 @@
 // =================================================================
 
 import db from '../models/index.js';
+import { Op } from 'sequelize';
 const Mesa = db.Mesa; // Se obtiene el modelo Mesa desde el objeto db.
 
 /**
@@ -46,6 +47,66 @@ export const getAllMesas = async (req, res) => {
     }
 };
 
+// INICIO ACTUALIZACION PARA OBTERNER MESAS ELIMINADAS
+/**
+ * Obtiene todas las mesas, incluyendo las eliminadas.
+ */
+export const getAllMesasWithDeleted = async (req, res) => {
+    try {
+        const mesas = await Mesa.findAll({
+            paranoid: false,
+            order: [['numero_mesa', 'ASC']]
+        });
+        
+        const mesasConEstado = mesas.map(mesa => ({
+            ...mesa.toJSON(),
+            esta_eliminada: mesa.deleted_at !== null
+        }));
+        
+        res.status(200).send(mesasConEstado);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+/**
+ * Obtiene solo las mesas eliminadas.
+ */
+export const getDeletedMesas = async (req, res) => {
+    try {
+        const mesasEliminadas = await Mesa.findAll({
+            where: {
+                deleted_at: { [Op.ne]: null }
+            },
+            paranoid: false,
+            order: [['numero_mesa', 'ASC']]
+        });
+        res.status(200).send(mesasEliminadas);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+/**
+ * Obtiene una mesa específica por su ID.
+ */
+export const getMesaById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const mesa = await Mesa.findByPk(id);
+        
+        if (mesa) {
+            res.status(200).send(mesa);
+        } else {
+            res.status(404).send({ 
+                message: `Mesa con id=${id} no encontrada o ha sido eliminada.` 
+            });
+        }
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+// FIN ACTUALIZACION PARA OPTENER MESAS ELIMINADAS
 /**
  * Actualiza el estado de una mesa específica.
  * @param {object} req - El objeto de la petición de Express.
@@ -99,6 +160,7 @@ export const markTableAsAvailable = async (req, res) => {
  * Elimina una mesa de la base de datos.
  * @param {object} req - El objeto de la petición de Express.
  * @param {object} res - El objeto de la respuesta de Express.
+ * La mesa no se elimina físicamente, solo se marca como eliminada.
  */
 export const deleteMesa = async (req, res) => {
     try {
@@ -116,3 +178,69 @@ export const deleteMesa = async (req, res) => {
         res.status(500).send({ message: "Error al eliminar la mesa." });
     }
 };
+
+// CAMBIO DE RESTAURAR MESAS ELIMINADAS
+/**
+ * Restaura una mesa previamente eliminada.
+ */
+export const restoreMesa = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si la mesa existe y está eliminada
+        const mesa = await Mesa.findByPk(id, { paranoid: false });
+        
+        if (!mesa) {
+            return res.status(404).send({ 
+                message: `Mesa con id=${id} no encontrada.` 
+            });
+        }
+        
+        if (!mesa.deleted_at) {
+            return res.status(400).send({ 
+                message: 'La mesa no está eliminada.' 
+            });
+        }
+        
+        // Restaurar la mesa
+        await Mesa.restore({ where: { mesa_id: id } });
+        
+        res.send({ 
+            message: "Mesa restaurada exitosamente.",
+            mesa: await Mesa.findByPk(id)
+        });
+    } catch (error) {
+        res.status(500).send({ message: "Error al restaurar la mesa." });
+    }
+};
+
+/**
+ * Elimina permanentemente una mesa (hard delete).
+ * ADVERTENCIA: Esta acción es irreversible.
+ */
+export const permanentDeleteMesa = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // force: true realiza una eliminación física permanente
+        const num = await Mesa.destroy({ 
+            where: { mesa_id: id },
+            force: true
+        });
+        
+        if (num == 1) {
+            res.send({ 
+                message: "Mesa eliminada permanentemente." 
+            });
+        } else {
+            res.status(404).send({ 
+                message: `No se pudo eliminar permanentemente la mesa con id=${id}.` 
+            });
+        }
+    } catch (error) {
+        res.status(500).send({ 
+            message: "Error al eliminar permanentemente la mesa." 
+        });
+    }
+};
+// FIN DEL CAMBIO DE RESTAURAR MESAS ELIMINADAS
