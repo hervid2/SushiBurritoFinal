@@ -5,7 +5,7 @@
 // =================================================================
 
 import db from '../models/index.js';
-import { Op } from 'sequelize';
+import { Op, where } from 'sequelize';
 import PDFDocument from 'pdfkit';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
@@ -194,7 +194,10 @@ export const getDashboardSummary = async (req, res) => {
     try {
         const [pendingOrders, totalUsers, dailySales] = await Promise.all([
             Pedido.count({ where: { estado: { [Op.in]: ['pendiente', 'en_preparacion'] } } }),
-            Usuario.count(),
+            // Usuario.count(),
+            Usuario.count({
+                where: {is_deleted: 0}
+            }),
             Factura.sum('total', {
                 where: {
                     fecha_factura: {

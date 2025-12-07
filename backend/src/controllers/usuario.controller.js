@@ -35,6 +35,8 @@ export const createUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         const usuarios = await db.Usuario.findAll({
+            where: { is_deleted:0}, //Agregue esto 19/11/25
+
             // 'attributes.exclude' previene que campos sensibles sean enviados al cliente.
             attributes: { exclude: ['contraseña', 'rol_id'] },
             // Se incluye el modelo Rol para obtener el nombre del rol asociado.
@@ -114,15 +116,41 @@ export const updateUser = async (req, res) => {
  * @param {object} req - El objeto de la petición de Express.
  * @param {object} res - El objeto de la respuesta de Express.
  */
+// export const deleteUser = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const num = await db.Usuario.destroy({
+//             where: { usuario_id: id }
+//         });
+        
+//         if (num == 1) {
+//             res.send({ message: "Usuario eliminado exitosamente." });
+//         } else {
+//             res.status(404).send({ message: `No se pudo eliminar el usuario con id=${id}.` });
+//         }
+//     } catch (error) {
+//         res.status(500).send({ message: "Error al eliminar el usuario." });
+//     }
+// };
+
+
+// activar delete delsde el backend
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const num = await db.Usuario.destroy({
-            where: { usuario_id: id }
-        });
-        
+
+        const num = await db.Usuario.update(
+            {
+                is_deleted: 1,
+                deleted_at: new Date()
+            },
+            {
+                where: { usuario_id: id }
+            }
+        );
+
         if (num == 1) {
-            res.send({ message: "Usuario eliminado exitosamente." });
+            res.send({ message: "Usuario eliminado (soft delete) exitosamente." });
         } else {
             res.status(404).send({ message: `No se pudo eliminar el usuario con id=${id}.` });
         }

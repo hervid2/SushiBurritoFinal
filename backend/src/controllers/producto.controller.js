@@ -39,6 +39,8 @@ export const getAllProducts = async (req, res) => {
     try {
         // Se obtienen todos los productos.
         const productos = await Producto.findAll({
+            where: { is_deleted:0}, //Agregue esto 07/12/25
+
             // La opción 'include' realiza un JOIN con la tabla de categorías.
             include: [{
                 model: Categoria,
@@ -97,17 +99,42 @@ export const updateProduct = async (req, res) => {
  * @param {object} req - El objeto de la petición de Express.
  * @param {object} res - El objeto de la respuesta de Express.
  */
+// export const deleteProduct = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         // 'destroy' devuelve el número de filas eliminadas.
+//         const num = await Producto.destroy({ where: { producto_id: id } });
+//         if (num == 1) {
+//             res.send({ message: "Producto eliminado exitosamente." });
+//         } else {
+//             res.send({ message: `No se pudo eliminar el producto con id=${id}.` });
+//         }
+//     } catch (error) {
+//         res.status(500).send({ message: "Error al eliminar el producto." });
+//     }
+// };
+
+// activar delete delsde el backend
 export const deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        // 'destroy' devuelve el número de filas eliminadas.
-        const num = await Producto.destroy({ where: { producto_id: id } });
+
+        const num = await db.Producto.update(
+            {
+                is_deleted: 1,
+                deleted_at: new Date()
+            },
+            {
+                where: { producto_id: id }
+            }
+        );
+
         if (num == 1) {
-            res.send({ message: "Producto eliminado exitosamente." });
+            res.send({ message: "Producto eliminado (soft delete) exitosamente." });
         } else {
-            res.send({ message: `No se pudo eliminar el producto con id=${id}.` });
+            res.status(404).send({ message: `No se pudo eliminar el Producto con id=${id}.` });
         }
     } catch (error) {
-        res.status(500).send({ message: "Error al eliminar el producto." });
+        res.status(500).send({ message: "Error al eliminar el Producto." });
     }
 };
