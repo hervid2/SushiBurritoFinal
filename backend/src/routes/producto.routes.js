@@ -25,4 +25,8 @@ router.put('/:id', [verifyToken, isAdmin], productoController.updateProduct);
 // Eliminar un producto (protegido para admin)
 router.delete('/:id', [verifyToken, isAdmin], productoController.deleteProduct);
 
+//restaurar prodcutos eliminados
+//router.put('/productos/:id/restaurar', restoreProduct);
+
+
 export default router;

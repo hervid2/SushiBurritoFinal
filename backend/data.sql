@@ -60,6 +60,7 @@ alter table productos
 ADD COLUMN is_deleted TINYINT(1) DEFAULT 0,
 ADD COLUMN deleted_at datetime NULL ;
 
+
 -- 5. Tabla mesas: Para la gestión de las mesas del restaurante.
 -- No tiene dependencias externas.
 CREATE TABLE mesas (

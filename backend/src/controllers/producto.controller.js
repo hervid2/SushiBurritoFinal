@@ -115,26 +115,67 @@ export const updateProduct = async (req, res) => {
 // };
 
 // activar delete delsde el backend
+// export const deleteProduct = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+
+//         const num = await db.Producto.update(
+//             {
+//                 is_deleted: 1,
+//                 deleted_at: new Date()
+//             },
+//             {
+//                 where: { producto_id: id }
+//             }
+//         );
+
+//         if (num == 1) {
+//             res.send({ message: "Producto eliminado (soft delete) exitosamente." });
+//         } else {
+//             res.status(404).send({ message: `No se pudo eliminar el Producto con id=${id}.` });
+//         }
+//     } catch (error) {
+//         res.status(500).send({ message: "Error al eliminar el Producto." });
+//     }
+// };
+
 export const deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const num = await db.Producto.update(
-            {
-                is_deleted: 1,
-                deleted_at: new Date()
-            },
-            {
-                where: { producto_id: id }
-            }
-        );
+        await Producto.destroy({
+            where: { producto_id: id }
+        });
 
-        if (num == 1) {
-            res.send({ message: "Producto eliminado (soft delete) exitosamente." });
-        } else {
-            res.status(404).send({ message: `No se pudo eliminar el Producto con id=${id}.` });
-        }
+        res.status(200).json({ message: 'Producto eliminado correctamente' });
+
     } catch (error) {
-        res.status(500).send({ message: "Error al eliminar el Producto." });
+        res.status(500).json({ message: 'Error al eliminar producto' });
     }
 };
+
+
+//para restaurar los productos eliminados
+
+// export const restoreProduct = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+
+//         const restored = await Producto.restore({
+//             where: { producto_id: id }
+//         });
+
+//         if (restored === 0) {
+//             return res.status(404).json({
+//                 message: `No se pudo restaurar el producto con id=${id}`
+//             });
+//         }
+
+//         res.status(200).json({
+//             message: `Producto con id=${id} restaurado correctamente`
+//         });
+
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
