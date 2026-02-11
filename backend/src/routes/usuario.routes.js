@@ -18,5 +18,9 @@ router.get('/', [verifyToken, isAdmin], usuarioController.getAllUsers);
 router.get('/:id', [verifyToken, isAdmin], usuarioController.getUserById);
 router.put('/:id', [verifyToken, isAdmin], usuarioController.updateUser);
 router.delete('/:id', [verifyToken, isAdmin], usuarioController.deleteUser);
+router.put('/:id/restore',[verifyToken, isAdmin], usuarioController.restoreUser);
+router.delete('/:id/force', [verifyToken, isAdmin], usuarioController.deleteUserPermanent);
+
+
 
 export default router;
