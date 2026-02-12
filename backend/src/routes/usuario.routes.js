@@ -9,18 +9,25 @@ import { validateUserCreation } from '../middleware/validation.middleware.js';
 
 const router = Router();
 
-// Ruta del middleware de validación
-router.post('/', [verifyToken, isAdmin, validateUserCreation], usuarioController.createUser);
+// 🔹 RUTAS ESPECÍFICAS PRIMERO
 
-// Todas las rutas están protegidas y solo accesibles por un admin
-router.post('/', [verifyToken, isAdmin], usuarioController.createUser);
-router.get('/', [verifyToken, isAdmin], usuarioController.getAllUsers);
-router.get('/:id', [verifyToken, isAdmin], usuarioController.getUserById);
-router.put('/:id', [verifyToken, isAdmin], usuarioController.updateUser);
-router.delete('/:id', [verifyToken, isAdmin], usuarioController.deleteUser);
-router.put('/:id/restore',[verifyToken, isAdmin], usuarioController.restoreUser);
+router.get('/eliminados', [verifyToken, isAdmin], usuarioController.getDeletedUsers);
+
+router.put('/:id/restore', [verifyToken, isAdmin], usuarioController.restoreUser);
+
 router.delete('/:id/force', [verifyToken, isAdmin], usuarioController.deleteUserPermanent);
 
 
+// 🔹 LUEGO LAS GENERALES
+
+router.post('/', [verifyToken, isAdmin, validateUserCreation], usuarioController.createUser);
+
+router.get('/', [verifyToken, isAdmin], usuarioController.getAllUsers);
+
+router.get('/:id', [verifyToken, isAdmin], usuarioController.getUserById);
+
+router.put('/:id', [verifyToken, isAdmin], usuarioController.updateUser);
+
+router.delete('/:id', [verifyToken, isAdmin], usuarioController.deleteUser);
 
 export default router;

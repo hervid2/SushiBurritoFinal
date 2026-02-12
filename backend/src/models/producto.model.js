@@ -72,21 +72,20 @@ export default (sequelize, DataTypes) => {
         categoria_id: {
             type: DataTypes.INTEGER
         },
-        // 👇 opcional pero recomendado
         is_deleted: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        deleted_at: {                 // 👈 AGREGA ESTO
+            type: DataTypes.DATE,
+            allowNull: true
         }
 
     }, {
         tableName: 'productos',
-
-        timestamps: true,        // ✅ OBLIGATORIO
-        paranoid: true,          // ✅ SOFT DELETE
-        deletedAt: 'deleted_at', // ✅ nombre exacto en la BD
-        createdAt: false,        // no los usas
-        updatedAt: false
+        timestamps: false
     });
 
     return Producto;
 };
+

@@ -55,6 +55,23 @@ export const createUser = async (req, res) => {
     }
 };
 
+export const getDeletedUsers = async (req, res) => {
+    try {
+        const usuarios = await Usuario.findAll({
+            paranoid: false,
+            where: {
+                deleted_at: { [db.Sequelize.Op.not]: null }
+            }
+        });
+
+        res.json(usuarios);
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
 
 /**
  * Obtiene una lista de todos los usuarios, incluyendo el nombre de su rol.
@@ -146,23 +163,6 @@ export const updateUser = async (req, res) => {
  * @param {object} req - El objeto de la petición de Express.
  * @param {object} res - El objeto de la respuesta de Express.
  */
-// export const deleteUser = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         const num = await db.Usuario.destroy({
-//             where: { usuario_id: id }
-//         });
-        
-//         if (num == 1) {
-//             res.send({ message: "Usuario eliminado exitosamente." });
-//         } else {
-//             res.status(404).send({ message: `No se pudo eliminar el usuario con id=${id}.` });
-//         }
-//     } catch (error) {
-//         res.status(500).send({ message: "Error al eliminar el usuario." });
-//     }
-// };
-
 
 // activar delete delsde el backend
 export const deleteUser = async (req, res) => {
