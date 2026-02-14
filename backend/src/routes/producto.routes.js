@@ -10,19 +10,34 @@ const router = Router();
 
 // --- Rutas para Productos ---
 
-// Obtener todos los productos (público)
+// ESPECÍFICAS PRIMERO
+
+// Ver productos eliminados
+router.get('/eliminados', [verifyToken, isAdmin], productoController.getDeletedProducts);
+
+// Restaurar producto
+router.put('/:id/restaurar', [verifyToken, isAdmin], productoController.restoreProduct);
+
+// Hard Delete
+router.delete('/:id/permanente', [verifyToken, isAdmin], productoController.deleteProductPermanent);
+
+
+// RUTAS GENERALES 
+
+// Obtener todos
 router.get('/', productoController.getAllProducts);
 
-// Obtener un producto por ID (público)
+// Obtener por ID
 router.get('/:id', productoController.getProductById);
 
-// Crear un nuevo producto (protegido para admin)
+// Crear producto
 router.post('/', [verifyToken, isAdmin], productoController.createProduct);
 
-// Actualizar un producto (protegido para admin)
+// Actualizar producto
 router.put('/:id', [verifyToken, isAdmin], productoController.updateProduct);
 
-// Eliminar un producto (protegido para admin)
+// Soft Delete
 router.delete('/:id', [verifyToken, isAdmin], productoController.deleteProduct);
 
 export default router;
+

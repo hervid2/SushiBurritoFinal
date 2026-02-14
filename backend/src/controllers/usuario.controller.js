@@ -6,6 +6,8 @@
 
 import db from '../models/index.js';
 
+const Usuario = db.Usuario;
+
 /**
  * Crea un nuevo usuario en la base de datos.
  * @param {object} req - El objeto de la petición de Express.
@@ -14,17 +16,62 @@ import db from '../models/index.js';
 export const createUser = async (req, res) => {
     try {
         const { nombre, rol, correo, contraseña } = req.body;
-        // Se busca el ID del rol basado en su nombre para asegurar que es válido.
-        const rolEncontrado = await db.Rol.findOne({ where: { nombre_rol: rol } });
-        if (!rolEncontrado) return res.status(400).send({ message: "El rol especificado no existe." });
 
-        // Se crea el usuario. El hook 'beforeCreate' en el modelo se encargará de hashear la contraseña.
-        await db.Usuario.create({ nombre, correo, contraseña, rol_id: rolEncontrado.rol_id });
-        res.status(201).send({ message: "Usuario creado exitosamente." });
+        const rolEncontrado = await db.Rol.findOne({
+            where: { nombre_rol: rol }
+        });
+
+        if (!rolEncontrado) {
+            return res.status(400).json({
+                message: "El rol especificado no existe."
+            });
+        }
+
+        // Verificar si el correo ya existe (incluyendo eliminados)
+        const usuarioExistente = await Usuario.findOne({
+            where: { correo },
+            paranoid: false
+        });
+
+        if (usuarioExistente) {
+            return res.status(400).json({
+                message: "Usuario existente"
+            });
+        }
+
+        await Usuario.create({
+            nombre,
+            correo,
+            contraseña,
+            rol_id: rolEncontrado.rol_id
+        });
+
+        res.status(201).json({
+            message: "Usuario creado exitosamente."
+        });
+
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
+
+export const getDeletedUsers = async (req, res) => {
+    try {
+        const usuarios = await Usuario.findAll({
+            paranoid: false,
+            where: {
+                deleted_at: { [db.Sequelize.Op.not]: null }
+            }
+        });
+
+        res.json(usuarios);
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
 
 /**
  * Obtiene una lista de todos los usuarios, incluyendo el nombre de su rol.
@@ -35,6 +82,8 @@ export const createUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         const usuarios = await db.Usuario.findAll({
+            where: { is_deleted:0}, //Agregue esto 19/11/25
+
             // 'attributes.exclude' previene que campos sensibles sean enviados al cliente.
             attributes: { exclude: ['contraseña', 'rol_id'] },
             // Se incluye el modelo Rol para obtener el nombre del rol asociado.
@@ -114,19 +163,88 @@ export const updateUser = async (req, res) => {
  * @param {object} req - El objeto de la petición de Express.
  * @param {object} res - El objeto de la respuesta de Express.
  */
+
+// activar delete delsde el backend
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const num = await db.Usuario.destroy({
+
+        const num = await Usuario.destroy({
             where: { usuario_id: id }
         });
-        
-        if (num == 1) {
-            res.send({ message: "Usuario eliminado exitosamente." });
-        } else {
-            res.status(404).send({ message: `No se pudo eliminar el usuario con id=${id}.` });
-        }
+
+        res.json({
+            message: num === 1
+                ? "Usuario eliminado correctamente (soft delete)."
+                : "Usuario no encontrado."
+        });
+
     } catch (error) {
-        res.status(500).send({ message: "Error al eliminar el usuario." });
+        console.error(error);
+        res.status(500).json({ message: "Error al eliminar usuario." });
     }
 };
+
+
+/**
+ * Restaura un usuario eliminado (soft delete).
+ * @param {object} req
+ * @param {object} res
+ */
+export const restoreUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const usuario = await Usuario.findByPk(id, {
+            paranoid: false
+        });
+
+        if (!usuario) {
+            return res.status(404).json({
+                message: "Usuario no encontrado."
+            });
+        }
+
+        await usuario.restore();
+
+        res.json({
+            message: "Usuario restaurado correctamente."
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Error al restaurar usuario."
+        });
+    }
+};
+
+export const deleteUserPermanent = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedRows = await Usuario.destroy({
+            where: { usuario_id: id },
+            force: true   // ESTO HACE HARD DELETE
+        });
+
+        if (deletedRows === 1) {
+            return res.json({
+                message: "Usuario eliminado definitivamente de la base de datos."
+            });
+        }
+
+        return res.status(404).json({
+            message: "Usuario no encontrado."
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Error al eliminar definitivamente el usuario."
+        });
+    }
+};
+
+
+

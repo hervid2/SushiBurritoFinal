@@ -34,6 +34,14 @@ CREATE TABLE usuarios (
   contraseña VARCHAR(255) NOT NULL,
   FOREIGN KEY (rol_id) REFERENCES roles(rol_id)
 );
+-- actualizcion de la tabla usuarios con soft delete
+alter table usuarios
+ADD COLUMN is_deleted TINYINT(1) DEFAULT 0,
+ADD COLUMN deleted_at datetime NULL ;
+
+ALTER TABLE usuarios 
+ADD COLUMN createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- 3.  Tabla para definir los roles del sistema
 CREATE TABLE roles (
@@ -51,6 +59,11 @@ CREATE TABLE productos (
   categoria_id INT,
   FOREIGN KEY (categoria_id) REFERENCES categorias(categoria_id)
 );
+-- actualizacion de la tabla productos con sof delete
+alter table productos
+ADD COLUMN is_deleted TINYINT(1) DEFAULT 0,
+ADD COLUMN deleted_at datetime NULL ;
+
 
 -- 5. Tabla mesas: Para la gestión de las mesas del restaurante.
 -- No tiene dependencias externas.
