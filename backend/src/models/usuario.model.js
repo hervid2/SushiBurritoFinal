@@ -1,9 +1,4 @@
-// =================================================================
-// ARCHIVO: src/models/usuario.model.js
-// ROL: Define el modelo de Sequelize para la tabla 'usuarios'.
-//      Este modelo es fundamental para la autenticación y autorización,
-//      e incluye un hook para el hasheo seguro de contraseñas.
-// =================================================================
+
 
 // Se importa la librería bcryptjs para el hasheo de contraseñas.
 import bcrypt from 'bcryptjs';
@@ -37,7 +32,7 @@ export default (sequelize, DataTypes) => {
             allowNull: false
         },
 
-        // 🔥 IMPORTANTE: agregar esta columna
+        // IMPORTANTE: agregar esta columna
         deleted_at: {
             type: DataTypes.DATE,
             allowNull: true
@@ -46,13 +41,13 @@ export default (sequelize, DataTypes) => {
     }, {
         tableName: 'usuarios',
 
-        // 🔥 ACTIVA timestamps porque paranoid los necesita
+        //  ACTIVA timestamps porque paranoid los necesita
         timestamps: true,
 
-        // 🔥 ACTIVA soft delete
+        // ACTIVA soft delete
         paranoid: true,
 
-        // 🔥 Usa tu nombre personalizado
+        // Usa tu nombre personalizado
         deletedAt: 'deleted_at',
 
         hooks: {

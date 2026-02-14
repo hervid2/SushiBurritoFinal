@@ -9,7 +9,7 @@ import { validateUserCreation } from '../middleware/validation.middleware.js';
 
 const router = Router();
 
-// 🔹 RUTAS ESPECÍFICAS PRIMERO
+// RUTAS ESPECÍFICAS PRIMERO
 
 router.get('/eliminados', [verifyToken, isAdmin], usuarioController.getDeletedUsers);
 
@@ -18,7 +18,7 @@ router.put('/:id/restore', [verifyToken, isAdmin], usuarioController.restoreUser
 router.delete('/:id/force', [verifyToken, isAdmin], usuarioController.deleteUserPermanent);
 
 
-// 🔹 LUEGO LAS GENERALES
+// RUTAS GENERALES
 
 router.post('/', [verifyToken, isAdmin, validateUserCreation], usuarioController.createUser);
 

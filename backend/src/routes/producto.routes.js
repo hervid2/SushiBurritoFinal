@@ -10,8 +10,7 @@ const router = Router();
 
 // --- Rutas para Productos ---
 
-// Obtener todos los productos (público)
-// 🔹 RUTAS ESPECÍFICAS PRIMERO
+// ESPECÍFICAS PRIMERO
 
 // Ver productos eliminados
 router.get('/eliminados', [verifyToken, isAdmin], productoController.getDeletedProducts);
@@ -23,7 +22,7 @@ router.put('/:id/restaurar', [verifyToken, isAdmin], productoController.restoreP
 router.delete('/:id/permanente', [verifyToken, isAdmin], productoController.deleteProductPermanent);
 
 
-// 🔹 RUTAS GENERALES DESPUÉS
+// RUTAS GENERALES 
 
 // Obtener todos
 router.get('/', productoController.getAllProducts);

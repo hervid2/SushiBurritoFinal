@@ -27,7 +27,7 @@ export const createUser = async (req, res) => {
             });
         }
 
-        // 🔥 Verificar si el correo ya existe (incluyendo eliminados)
+        // Verificar si el correo ya existe (incluyendo eliminados)
         const usuarioExistente = await Usuario.findOne({
             where: { correo },
             paranoid: false
@@ -225,7 +225,7 @@ export const deleteUserPermanent = async (req, res) => {
 
         const deletedRows = await Usuario.destroy({
             where: { usuario_id: id },
-            force: true   // 🔥 ESTO HACE HARD DELETE
+            force: true   // ESTO HACE HARD DELETE
         });
 
         if (deletedRows === 1) {

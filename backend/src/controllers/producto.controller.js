@@ -23,7 +23,7 @@ export const createProduct = async (req, res) => {
             });
         }
 
-        // 🔎 Verificar si ya existe producto con mismo nombre y categoría
+        //  Verificar si ya existe producto con mismo nombre y categoría
         const productoExistente = await Producto.findOne({
             where: {
                 nombre_producto,
