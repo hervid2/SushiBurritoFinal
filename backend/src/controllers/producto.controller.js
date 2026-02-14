@@ -213,7 +213,8 @@ export const deleteProductPermanent = async (req, res) => {
         const { id } = req.params;
 
         const num = await Producto.destroy({
-            where: { producto_id: id }
+            where: { producto_id: id },
+            force : true
         });
 
         if (num === 0) {
