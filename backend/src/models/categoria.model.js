@@ -3,6 +3,7 @@
 // ROL: Define el modelo de Sequelize para la tabla 'categorias'.
 //      Este modelo representa la estructura de la tabla y proporciona
 //      la interfaz para interactuar con ella desde el código.
+//      Implementa soft delete mediante paranoid.
 // =================================================================
 
 /**
@@ -41,12 +42,25 @@ export default (sequelize, DataTypes) => {
         // tableName: Especifica explícitamente el nombre de la tabla en la base de datos.
         tableName: 'categorias',
         
-        // timestamps: false le dice a Sequelize que no espere ni gestione
-        // automáticamente las columnas 'createdAt' y 'updatedAt'.
-        timestamps: false
+          // *** CAMBIO CLAVE: Habilitar soft delete ***
+        // timestamps: true es necesario para usar paranoid
+        timestamps: true,
+        
+        // paranoid: true habilita el soft delete
+        // Sequelize usará la columna deletedAt automáticamente
+        paranoid: true,
+        
+        // Especificar el nombre exacto de la columna en la BD
+        deletedAt: 'deleted_at',
+        
+        // Deshabilitar createdAt y updatedAt si no las necesitas
+        createdAt: false,
+        updatedAt: false
     });
 
     // Se devuelve el modelo definido para que pueda ser utilizado en otras partes de la aplicación,
     // especialmente en 'src/models/index.js' para establecer las asociaciones.
     return Categoria;
 };
+
+

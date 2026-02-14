@@ -6,24 +6,26 @@ import { Router } from 'express';
 import * as mesaController from '../controllers/mesa.controller.js';
 import { verifyToken, isAdmin } from '../middleware/auth.middleware.js';
 
-
 const router = Router();
 
-// --- Rutas para Mesas ---
-
-// Obtener todas las mesas (público, para que los meseros vean el estado)
+// --- Rutas Públicas ---
 router.get('/', mesaController.getAllMesas);
 
-// Crear una nueva mesa (protegido para admin)
-router.post('/', [verifyToken, isAdmin], mesaController.createMesa);
+// --- Rutas de Gestión Avanzada (Solo Administradores) ---
+// ⚠️ IMPORTANTE: Estas DEBEN ir ANTES de las rutas con /:id
+router.get('/admin/with-deleted', [verifyToken, isAdmin], mesaController.getAllMesasWithDeleted);
+router.get('/admin/deleted', [verifyToken, isAdmin], mesaController.getDeletedMesas);
 
-// Actualizar el estado de una mesa (protegido, meseros o admin pueden hacerlo)
+// --- Rutas con Parámetros Dinámicos ---
+router.get('/:id', mesaController.getMesaById);
+router.post('/:id/restore', [verifyToken, isAdmin], mesaController.restoreMesa);
 router.put('/:id/estado', [verifyToken], mesaController.updateMesaEstado);
-
-// Ruta para que un mesero marque una mesa como limpia y disponible
 router.put('/:id/mark-as-available', [verifyToken], mesaController.markTableAsAvailable);
+router.put('/:id', [verifyToken, isAdmin], mesaController.updateMesa);
 
-// Eliminar una mesa (protegido para admin)
+// --- Rutas Protegidas (Solo Administradores) ---
+router.post('/', [verifyToken, isAdmin], mesaController.createMesa);
 router.delete('/:id', [verifyToken, isAdmin], mesaController.deleteMesa);
+router.delete('/:id/permanent', [verifyToken, isAdmin], mesaController.permanentDeleteMesa);
 
 export default router;
