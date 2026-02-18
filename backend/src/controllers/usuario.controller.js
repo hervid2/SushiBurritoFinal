@@ -5,56 +5,67 @@
 // =================================================================
 
 import db from '../models/index.js';
+import crypto from 'crypto';
+import { sendTemporaryPasswordEmail } from '../helpers/email.js';
 
 const Usuario = db.Usuario;
 
-/**
- * Crea un nuevo usuario en la base de datos.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+
+/* =====================================================
+   CREAR USUARIO CON CONTRASEÑA TEMPORAL
+===================================================== */
 export const createUser = async (req, res) => {
     try {
-        const { nombre, rol, correo, contraseña } = req.body;
+        const { correo, rol_id } = req.body;
 
-        const rolEncontrado = await db.Rol.findOne({
-            where: { nombre_rol: rol }
-        });
-
-        if (!rolEncontrado) {
-            return res.status(400).json({
-                message: "El rol especificado no existe."
-            });
-        }
-
-        // Verificar si el correo ya existe (incluyendo eliminados)
-        const usuarioExistente = await Usuario.findOne({
-            where: { correo },
-            paranoid: false
-        });
+        const usuarioExistente = await Usuario.findOne({ where: { correo } });
 
         if (usuarioExistente) {
             return res.status(400).json({
-                message: "Usuario existente"
+                message: "El usuario ya existe."
             });
         }
 
+        // Generar contraseña temporal
+        const contraseñaTemporal = crypto.randomBytes(6).toString('hex');
+
+        console.log("🔐 CONTRASEÑA TEMPORAL:", contraseñaTemporal);
+
+
+        // ⚠️ NO encriptamos aquí (el modelo lo hace automáticamente)
         await Usuario.create({
-            nombre,
-            correo,
-            contraseña,
-            rol_id: rolEncontrado.rol_id
-        });
+    nombre: "Pendiente",
+    correo,
+    rol_id,
+    contraseña: contraseñaTemporal,
+    must_change_password: true
+});
+
+try {
+    await sendTemporaryPasswordEmail(correo, contraseñaTemporal);
+} catch (emailError) {
+    console.error("⚠️ Error enviando correo:", emailError);
+}
+
+        // Enviar correo
+        await sendTemporaryPasswordEmail(correo, contraseñaTemporal);
 
         res.status(201).json({
-            message: "Usuario creado exitosamente."
+            message: "Usuario creado y contraseña temporal enviada."
         });
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({
+            message: "Error al crear usuario."
+        });
     }
 };
 
+
+/* =====================================================
+   USUARIOS ELIMINADOS
+===================================================== */
 export const getDeletedUsers = async (req, res) => {
     try {
         const usuarios = await Usuario.findAll({
@@ -72,99 +83,97 @@ export const getDeletedUsers = async (req, res) => {
 };
 
 
-
-/**
- * Obtiene una lista de todos los usuarios, incluyendo el nombre de su rol.
- * Excluye datos sensibles como la contraseña de la respuesta.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+/* =====================================================
+   LISTAR USUARIOS ACTIVOS
+===================================================== */
 export const getAllUsers = async (req, res) => {
     try {
-        const usuarios = await db.Usuario.findAll({
-            where: { is_deleted:0}, //Agregue esto 19/11/25
+        const usuarios = await Usuario.findAll({
 
-            // 'attributes.exclude' previene que campos sensibles sean enviados al cliente.
+            // 🔥 Eliminado is_deleted (NO existe en tu modelo)
+
             attributes: { exclude: ['contraseña', 'rol_id'] },
-            // Se incluye el modelo Rol para obtener el nombre del rol asociado.
             include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
         });
-        
-        // Se mapea la respuesta para limpiarla y simplificar su estructura para el frontend.
+
         const respuesta = usuarios.map(u => ({
             usuario_id: u.usuario_id,
             nombre: u.nombre,
             correo: u.correo,
             rol: u.Rol.nombre_rol
         }));
-        res.status(200).send(respuesta);
+
+        res.status(200).json(respuesta);
+
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
-/**
- * Obtiene un usuario específico por su ID.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+
+/* =====================================================
+   OBTENER USUARIO POR ID
+===================================================== */
 export const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
-        const usuario = await db.Usuario.findByPk(id, {
+
+        const usuario = await Usuario.findByPk(id, {
             attributes: { exclude: ['contraseña', 'rol_id'] },
             include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
         });
-        
-        if (usuario) {
-            // Se reestructura la respuesta para que sea consistente.
-            const respuesta = {
-                usuario_id: usuario.usuario_id,
-                nombre: usuario.nombre,
-                correo: usuario.correo,
-                rol: usuario.Rol.nombre_rol
-            };
-            res.status(200).send(respuesta);
-        } else {
-            res.status(404).send({ message: `Usuario con id=${id} no encontrado.` });
+
+        if (!usuario) {
+            return res.status(404).json({
+                message: `Usuario con id=${id} no encontrado.`
+            });
         }
+
+        res.json({
+            usuario_id: usuario.usuario_id,
+            nombre: usuario.nombre,
+            correo: usuario.correo,
+            rol: usuario.Rol.nombre_rol
+        });
+
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
-/**
- * Actualiza la información de un usuario (nombre y correo).
- * No permite actualizar el rol ni la contraseña desde este endpoint.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+
+/* =====================================================
+   ACTUALIZAR USUARIO
+===================================================== */
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, correo } = req.body; 
+        const { nombre, correo } = req.body;
 
-        const [num] = await db.Usuario.update({ nombre, correo }, {
-            where: { usuario_id: id }
+        const [num] = await Usuario.update(
+            { nombre, correo },
+            { where: { usuario_id: id } }
+        );
+
+        if (num === 1) {
+            return res.json({
+                message: "Usuario actualizado exitosamente."
+            });
+        }
+
+        return res.status(404).json({
+            message: "Usuario no encontrado o sin cambios."
         });
 
-        if (num == 1) {
-            res.send({ message: "Usuario actualizado exitosamente." });
-        } else {
-            res.status(404).send({ message: `No se pudo actualizar el usuario con id=${id}. Quizás no fue encontrado o no hubo cambios.` });
-        }
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
-/**
- * Elimina un usuario de la base de datos.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
 
-// activar delete delsde el backend
+/* =====================================================
+   SOFT DELETE
+===================================================== */
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
@@ -181,16 +190,16 @@ export const deleteUser = async (req, res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Error al eliminar usuario." });
+        res.status(500).json({
+            message: "Error al eliminar usuario."
+        });
     }
 };
 
 
-/**
- * Restaura un usuario eliminado (soft delete).
- * @param {object} req
- * @param {object} res
- */
+/* =====================================================
+   RESTORE USER
+===================================================== */
 export const restoreUser = async (req, res) => {
     try {
         const { id } = req.params;
@@ -212,25 +221,28 @@ export const restoreUser = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
         res.status(500).json({
             message: "Error al restaurar usuario."
         });
     }
 };
 
+
+/* =====================================================
+   HARD DELETE
+===================================================== */
 export const deleteUserPermanent = async (req, res) => {
     try {
         const { id } = req.params;
 
         const deletedRows = await Usuario.destroy({
             where: { usuario_id: id },
-            force: true   // ESTO HACE HARD DELETE
+            force: true
         });
 
         if (deletedRows === 1) {
             return res.json({
-                message: "Usuario eliminado definitivamente de la base de datos."
+                message: "Usuario eliminado definitivamente."
             });
         }
 
@@ -239,12 +251,46 @@ export const deleteUserPermanent = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
         res.status(500).json({
-            message: "Error al eliminar definitivamente el usuario."
+            message: "Error al eliminar definitivamente."
         });
     }
 };
+
+
+/* =====================================================
+   CAMBIAR CONTRASEÑA (PRIMER LOGIN)
+===================================================== */
+export const changePassword = async (req, res) => {
+    try {
+        const { usuario_id, nuevaContraseña } = req.body;
+
+        const usuario = await Usuario.findByPk(usuario_id);
+
+        if (!usuario) {
+            return res.status(404).json({
+                message: "Usuario no encontrado."
+            });
+        }
+
+        // ⚠️ No encriptamos manualmente
+        usuario.contraseña = nuevaContraseña;
+        usuario.must_change_password = false;
+
+        await usuario.save();
+
+        res.json({
+            message: "Contraseña actualizada correctamente."
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Error al cambiar contraseña."
+        });
+    }
+};
+
 
 
 

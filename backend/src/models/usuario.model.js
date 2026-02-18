@@ -11,14 +11,17 @@ export default (sequelize, DataTypes) => {
             autoIncrement: true,
             primaryKey: true
         },
+
         nombre: {
             type: DataTypes.STRING(100),
             allowNull: false
         },
+
         rol_id: {
             type: DataTypes.INTEGER,
             allowNull: false
         },
+
         correo: {
             type: DataTypes.STRING(100),
             allowNull: false,
@@ -27,12 +30,19 @@ export default (sequelize, DataTypes) => {
                 isEmail: true
             }
         },
+
         contraseña: {
             type: DataTypes.STRING(255),
             allowNull: false
         },
 
-        // IMPORTANTE: agregar esta columna
+        // 🔥 Campo para forzar cambio de contraseña en primer login
+        must_change_password: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
+        },
+
         deleted_at: {
             type: DataTypes.DATE,
             allowNull: true
@@ -40,19 +50,23 @@ export default (sequelize, DataTypes) => {
 
     }, {
         tableName: 'usuarios',
-
-        //  ACTIVA timestamps porque paranoid los necesita
         timestamps: true,
-
-        // ACTIVA soft delete
         paranoid: true,
-
-        // Usa tu nombre personalizado
         deletedAt: 'deleted_at',
 
         hooks: {
+
+            // 🔐 Encripta automáticamente al crear
             beforeCreate: async (usuario) => {
                 if (usuario.contraseña) {
+                    const salt = await bcrypt.genSalt(10);
+                    usuario.contraseña = await bcrypt.hash(usuario.contraseña, salt);
+                }
+            },
+
+            // 🔐 Encripta solo si la contraseña cambió
+            beforeUpdate: async (usuario) => {
+                if (usuario.changed('contraseña')) {
                     const salt = await bcrypt.genSalt(10);
                     usuario.contraseña = await bcrypt.hash(usuario.contraseña, salt);
                 }
@@ -62,5 +76,3 @@ export default (sequelize, DataTypes) => {
 
     return Usuario;
 };
-
-
