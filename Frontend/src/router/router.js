@@ -89,10 +89,22 @@ const updateSharedUI = (isAuthenticated, userRole, route) => {
             const newLogoutButton = logoutButton.cloneNode(true);
             logoutButton.parentNode.replaceChild(newLogoutButton, logoutButton);
 
-            newLogoutButton.addEventListener('click', () => {
+            newLogoutButton.addEventListener('click', async () => {
+                try {
+                    await fetch('http://localhost:3000/api/auth/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include'
+                    });
+                } catch (error) {
+                    // Aunque falle el backend, se limpia sesión local para mantener consistencia.
+                }
+
                 showAlert('Has cerrado sesión.', 'success');
                 disconnectSocket();
-                localStorage.clear();
+                localStorage.removeItem('isAuthenticated');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('accessToken');
                 navigateTo('/login'); 
             });
         }

@@ -149,6 +149,5 @@ El servidor Socket.IO se configura automáticamente al iniciar el backend. Aseg�
 
 1. Tener la dependencia `socket.io` instalada
 2. Configurar variable de entorno `FRONTEND_URL` si es necesario
-3. Iniciar el servidor con `npm run dev` o `npm start`
-
+3. Iniciar el servidor con `npm run dev`
 El servidor escuchará en el mismo puerto que Express (por defecto 3000) y aceptará conexiones WebSocket y polling.

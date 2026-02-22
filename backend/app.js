@@ -9,6 +9,7 @@
 import express from 'express';      // Framework principal para construir el servidor web.
 import { createServer } from 'http'; // Módulo para crear servidor HTTP para Socket.IO
 import cors from 'cors';            // Middleware para habilitar Cross-Origin Resource Sharing, que la api confíe en compartir datos con el frontend.
+import cookieParser from 'cookie-parser'; // Middleware para parsear cookies entrantes.
 import dotenv from 'dotenv';        // Módulo para cargar variables de entorno desde un archivo .env.
 import db from './src/models/index.js'; // Objeto de base de datos inicializado por Sequelize.
 import { createSocketServer } from './src/socket/index.js'; // Configuración de Socket.IO
@@ -36,11 +37,17 @@ const app = express();
 
 // app.use(cors()): Habilita CORS para permitir peticiones desde el frontend
 // que se sirve en un origen diferente (ej. localhost:5173).
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+}));
 
 // app.use(express.json()): Parsea las peticiones entrantes con payloads en formato JSON.
 // Esto permite acceder a los datos del cuerpo de la petición a través de `req.body`.
 app.use(express.json());
+
+// app.use(cookieParser()): Permite acceder a cookies enviadas por el cliente.
+app.use(cookieParser());
 
 // --- Definición de Rutas (Endpoints) ---
 

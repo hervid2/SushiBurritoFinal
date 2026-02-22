@@ -25,8 +25,10 @@ function clearSessionAndRedirectToLogin() {
         console.error(error);
     }
 
-    // Se limpia la sesión para evitar estados inconsistentes.
-    localStorage.clear();
+    // Se limpia únicamente la sesión para evitar borrar otros datos de la app.
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('accessToken');
     window.location.hash = '/login';
     window.location.reload();
 }
@@ -74,6 +76,7 @@ export function connectSocket() {
 
     if (socketInstance) {
         try {
+            socketInstance.auth = { token };
             socketInstance.connect();
             return socketInstance;
         } catch (error) {
