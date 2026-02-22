@@ -27,6 +27,18 @@ export const menuController = () => {
     const menuItemsPagination = document.getElementById('menu-items-pagination');
     const categoriesPagination = document.getElementById('categories-pagination');
     const tablesPagination = document.getElementById('tables-pagination');
+    const toggleRestoreProductsBtn = document.getElementById('toggle-restore-products-btn');
+    const toggleRestoreCategoriesBtn = document.getElementById('toggle-restore-categories-btn');
+    const toggleRestoreTablesBtn = document.getElementById('toggle-restore-tables-btn');
+    const restoreProductsContent = document.getElementById('restore-products-content');
+    const restoreCategoriesContent = document.getElementById('restore-categories-content');
+    const restoreTablesContent = document.getElementById('restore-tables-content');
+    const deletedProductsSelect = document.getElementById('deleted-products-select');
+    const deletedCategoriesSelect = document.getElementById('deleted-categories-select');
+    const deletedTablesSelect = document.getElementById('deleted-tables-select');
+    const restoreProductBtn = document.getElementById('restore-product-btn');
+    const restoreCategoryBtn = document.getElementById('restore-category-btn');
+    const restoreTableBtn = document.getElementById('restore-table-btn');
 
     // --- Estado Local del Controlador ---
     // Almacena los datos completos de la API y el estado de la paginación.
@@ -152,6 +164,100 @@ export const menuController = () => {
     };
 
     /**
+     * Alterna la visibilidad de un panel de restauración.
+     * @param {HTMLElement} panelElement - El contenedor del panel a mostrar u ocultar.
+     */
+    const toggleRestorePanel = (panelElement) => {
+        if (!panelElement) return;
+        panelElement.style.display = panelElement.style.display === 'none' ? 'block' : 'none';
+    };
+
+    /**
+     * Carga los productos eliminados en su selector de restauración.
+     */
+    const loadDeletedProducts = async () => {
+        if (!deletedProductsSelect) return;
+        try {
+            const deletedProducts = await api.get('productos/eliminados');
+            deletedProductsSelect.innerHTML = deletedProducts.length
+                ? '<option value="">-- Seleccione un producto --</option>' +
+                  deletedProducts.map(product => `<option value="${product.producto_id}">${product.nombre_producto}</option>`).join('')
+                : '<option value="">-- No hay productos eliminados --</option>';
+        } catch (error) {
+            showAlert(error.message, 'error');
+        }
+    };
+
+    /**
+     * Carga las categorías eliminadas en su selector de restauración.
+     */
+    const loadDeletedCategories = async () => {
+        if (!deletedCategoriesSelect) return;
+        try {
+            const deletedCategories = await api.get('categorias/admin/deleted');
+            deletedCategoriesSelect.innerHTML = deletedCategories.length
+                ? '<option value="">-- Seleccione una categoría --</option>' +
+                  deletedCategories.map(category => `<option value="${category.categoria_id}">${category.nombre}</option>`).join('')
+                : '<option value="">-- No hay categorías eliminadas --</option>';
+        } catch (error) {
+            showAlert(error.message, 'error');
+        }
+    };
+
+    /**
+     * Carga las mesas eliminadas en su selector de restauración.
+     */
+    const loadDeletedTables = async () => {
+        if (!deletedTablesSelect) return;
+        try {
+            const deletedTables = await api.get('mesas/admin/deleted');
+            deletedTablesSelect.innerHTML = deletedTables.length
+                ? '<option value="">-- Seleccione una mesa --</option>' +
+                  deletedTables.map(table => `<option value="${table.mesa_id}">Mesa ${table.numero_mesa}</option>`).join('')
+                : '<option value="">-- No hay mesas eliminadas --</option>';
+        } catch (error) {
+            showAlert(error.message, 'error');
+        }
+    };
+
+    /**
+     * Restaura una entidad eliminada según su configuración.
+     * @param {Object} config - Configuración de restauración.
+     * @param {HTMLSelectElement} config.selectElement - Selector con el ID del elemento eliminado.
+     * @param {string} config.entityLabel - Etiqueta legible de la entidad a restaurar.
+     * @param {function} config.endpointBuilder - Función para construir el endpoint de restauración.
+     * @param {string} config.method - Método HTTP para restaurar (post o put).
+     * @param {HTMLElement} [config.panelElement] - Panel a cerrar automáticamente tras restaurar.
+     */
+    const handleRestoreEntity = async ({ selectElement, entityLabel, endpointBuilder, method, panelElement }) => {
+        const selectedId = selectElement?.value;
+
+        if (!selectedId) {
+            showAlert(`Seleccione ${entityLabel} para restaurar.`, 'warning');
+            return;
+        }
+
+        try {
+            await showConfirmModal('Confirmar Restauración', `¿Desea restaurar ${entityLabel} seleccionado?`);
+            await api[method](endpointBuilder(selectedId));
+            showAlert(`${entityLabel} restaurado correctamente.`, 'success');
+
+            await Promise.all([
+                loadAllData(),
+                loadDeletedProducts(),
+                loadDeletedCategories(),
+                loadDeletedTables()
+            ]);
+
+            // Mejora UX: limpia la selección y cierra el panel al completar restauración.
+            if (selectElement) selectElement.value = '';
+            if (panelElement) panelElement.style.display = 'none';
+        } catch (error) {
+            if (error && error.message) showAlert(error.message, 'error');
+        }
+    };
+
+    /**
      * Carga todos los datos necesarios para la vista desde la API de forma paralela.
      */
     const loadAllData = async () => {
@@ -220,7 +326,12 @@ export const menuController = () => {
             await showConfirmModal('Confirmar Eliminación', `¿Seguro que desea eliminar <strong>${name}</strong>?`); // Muestra un modal de confirmación antes de eliminar
             await api.delete(`${type}/${id}`); // Realiza la solicitud a la API para eliminar el producto, categoría o mesa
             showAlert(`${name} eliminado exitosamente.`, 'success'); // Muestra un mensaje de éxito
-            loadAllData(); // Recarga todos los datos para reflejar los cambios
+            await Promise.all([
+                loadAllData(),
+                loadDeletedProducts(),
+                loadDeletedCategories(),
+                loadDeletedTables()
+            ]); // Recarga datos visibles y listas de eliminados para reflejar los cambios.
         } catch (error) {
             if (error && error.message) showAlert(error.message, 'error');
         }
@@ -267,9 +378,40 @@ export const menuController = () => {
         menuItemForm.addEventListener('submit', handleSaveMenuItem); // Asigna el listener al formulario de producto para manejar el guardado
         addCategoryForm.addEventListener('submit', handleAddCategory); // Asigna el listener al formulario de categorías para manejar la creación de nuevas categorías
         addTableForm.addEventListener('submit', handleAddTable); // Asigna el listener al formulario de mesas para manejar la creación de nuevas mesas
+
+        toggleRestoreProductsBtn?.addEventListener('click', () => toggleRestorePanel(restoreProductsContent));
+        toggleRestoreCategoriesBtn?.addEventListener('click', () => toggleRestorePanel(restoreCategoriesContent));
+        toggleRestoreTablesBtn?.addEventListener('click', () => toggleRestorePanel(restoreTablesContent));
+
+        restoreProductBtn?.addEventListener('click', () => handleRestoreEntity({
+            selectElement: deletedProductsSelect,
+            entityLabel: 'el producto',
+            endpointBuilder: (id) => `productos/${id}/restaurar`,
+            method: 'put',
+            panelElement: restoreProductsContent
+        }));
+
+        restoreCategoryBtn?.addEventListener('click', () => handleRestoreEntity({
+            selectElement: deletedCategoriesSelect,
+            entityLabel: 'la categoría',
+            endpointBuilder: (id) => `categorias/${id}/restore`,
+            method: 'post',
+            panelElement: restoreCategoriesContent
+        }));
+
+        restoreTableBtn?.addEventListener('click', () => handleRestoreEntity({
+            selectElement: deletedTablesSelect,
+            entityLabel: 'la mesa',
+            endpointBuilder: (id) => `mesas/${id}/restore`,
+            method: 'post',
+            panelElement: restoreTablesContent
+        }));
         
         // Carga todos los datos iniciales al entrar a la vista.
         loadAllData();
+        loadDeletedProducts();
+        loadDeletedCategories();
+        loadDeletedTables();
     };
     
     // Ejecuta la función de inicialización.

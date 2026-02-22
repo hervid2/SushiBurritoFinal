@@ -50,6 +50,22 @@
           </table>
       </div>
       <div class="pagination-container" id="menu-items-pagination"></div>
+
+      <div class="restore-panel">
+          <button type="button" class="btn btn--secondary btn--small restore-toggle-btn" id="toggle-restore-products-btn">Ver eliminados y restaurar</button>
+          <div class="restore-content" id="restore-products-content" style="display: none;">
+              <h4>Productos eliminados</h4>
+              <div class="inline-form">
+                  <div class="form-group">
+                      <label for="deleted-products-select" class="form-label">Seleccione producto:</label>
+                      <select id="deleted-products-select" class="form-control">
+                          <option value="">-- No hay productos eliminados --</option>
+                      </select>
+                  </div>
+                  <button type="button" class="btn btn--primary" id="restore-product-btn">Restaurar</button>
+              </div>
+          </div>
+      </div>
   </section>
 
   <section class="management-section">
@@ -66,6 +82,22 @@
           </table>
       </div>
       <div class="pagination-container" id="categories-pagination"></div>
+
+      <div class="restore-panel">
+          <button type="button" class="btn btn--secondary btn--small restore-toggle-btn" id="toggle-restore-categories-btn">Ver eliminadas y restaurar</button>
+          <div class="restore-content" id="restore-categories-content" style="display: none;">
+              <h4>Categorías eliminadas</h4>
+              <div class="inline-form">
+                  <div class="form-group">
+                      <label for="deleted-categories-select" class="form-label">Seleccione categoría:</label>
+                      <select id="deleted-categories-select" class="form-control">
+                          <option value="">-- No hay categorías eliminadas --</option>
+                      </select>
+                  </div>
+                  <button type="button" class="btn btn--primary" id="restore-category-btn">Restaurar</button>
+              </div>
+          </div>
+      </div>
 
       <form id="add-category-form" class="inline-form">
           <div class="form-group">
@@ -91,6 +123,22 @@
           </table>
       </div>
       <div class="pagination-container" id="tables-pagination"></div>
+
+      <div class="restore-panel">
+          <button type="button" class="btn btn--secondary btn--small restore-toggle-btn" id="toggle-restore-tables-btn">Ver eliminadas y restaurar</button>
+          <div class="restore-content" id="restore-tables-content" style="display: none;">
+              <h4>Mesas eliminadas</h4>
+              <div class="inline-form">
+                  <div class="form-group">
+                      <label for="deleted-tables-select" class="form-label">Seleccione mesa:</label>
+                      <select id="deleted-tables-select" class="form-control">
+                          <option value="">-- No hay mesas eliminadas --</option>
+                      </select>
+                  </div>
+                  <button type="button" class="btn btn--primary" id="restore-table-btn">Restaurar</button>
+              </div>
+          </div>
+      </div>
 
       <form id="add-table-form" class="inline-form">
           <div class="form-group">

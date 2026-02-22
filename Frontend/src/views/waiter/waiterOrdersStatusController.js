@@ -7,6 +7,7 @@
 
 import { showAlert } from '../../helpers/alerts.js';
 import { api } from '../../helpers/solicitudes.js';
+import { connectSocket, getSocket } from '../../helpers/socketClient.js';
 
 /**
  * Controlador principal para la vista de Estado de Pedidos.
@@ -37,6 +38,28 @@ export const waiterOrdersStatusController = () => {
         } catch (error) { // Maneja cualquier error que ocurra al intentar obtener los pedidos.
             ordersStatusTableBody.innerHTML = `<tr><td colspan="7" class="error-message">${error.message}</td></tr>`; // Muestra un mensaje de error en la tabla si falla la carga.
         }
+    };
+
+    /**
+     * @description Inicia los listeners de Socket.IO para refrescar la tabla
+     *              de estado de pedidos cuando existan cambios en tiempo real.
+     * @returns {void}
+     */
+    const startRealtimeOrdersStatus = () => {
+        const socket = getSocket() || connectSocket();
+        if (!socket) return;
+
+        socket.off('nuevo_pedido');
+        socket.off('cambio_estado_pedido');
+        socket.off('pedido_cancelado');
+
+        const refrescarTabla = () => {
+            loadOrdersStatus();
+        };
+
+        socket.on('nuevo_pedido', refrescarTabla);
+        socket.on('cambio_estado_pedido', refrescarTabla);
+        socket.on('pedido_cancelado', refrescarTabla);
     };
 
     /**
@@ -144,6 +167,7 @@ export const waiterOrdersStatusController = () => {
         });
         // Carga inicial de los datos al entrar a la vista.
         loadOrdersStatus();
+        startRealtimeOrdersStatus();
     };
 
     init();

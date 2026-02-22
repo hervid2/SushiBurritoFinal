@@ -7,9 +7,11 @@
 
 // --- Importación de Módulos y Librerías ---
 import express from 'express';      // Framework principal para construir el servidor web.
+import { createServer } from 'http'; // Módulo para crear servidor HTTP para Socket.IO
 import cors from 'cors';            // Middleware para habilitar Cross-Origin Resource Sharing, que la api confíe en compartir datos con el frontend.
 import dotenv from 'dotenv';        // Módulo para cargar variables de entorno desde un archivo .env.
 import db from './src/models/index.js'; // Objeto de base de datos inicializado por Sequelize.
+import { createSocketServer } from './src/socket/index.js'; // Configuración de Socket.IO
 
 // Carga las variables de entorno definidas en el archivo .env a process.env.
 dotenv.config();
@@ -69,9 +71,19 @@ db.sequelize.sync().then(() => {
     // Se obtiene el puerto de las variables de entorno, con un valor por defecto de 3000.
     const PORT = process.env.PORT || 3000;
     
-    // app.listen() inicia el servidor y lo pone a escuchar peticiones en el puerto especificado.
-    app.listen(PORT, () => {
-        console.log(`Servidor corriendo en el puerto ${PORT}.`);
+    // Crear servidor HTTP para soporte de Socket.IO
+    const httpServer = createServer(app);
+    
+    // Inicializar servidor Socket.IO
+    const io = createSocketServer(httpServer);
+    
+    // Hacer disponible la instancia de Socket.IO para los controladores
+    app.set('io', io);
+    
+    // Iniciar servidor HTTP
+    httpServer.listen(PORT, () => {
+        console.log(`Servidor HTTP corriendo en el puerto ${PORT}.`);
+        console.log(`Servidor Socket.IO habilitado para notificaciones en tiempo real.`);
     });
 }).catch((err) => {
     // Si la conexión a la base de datos falla, se muestra un error y el servidor no arranca.

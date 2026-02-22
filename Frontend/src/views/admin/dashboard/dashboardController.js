@@ -7,6 +7,7 @@
 
 import { showAlert } from '../../../helpers/alerts.js';
 import { api } from '../../../helpers/solicitudes.js'; 
+import { connectSocket, getSocket } from '../../../helpers/socketClient.js';
 
 /**
  * Controlador principal para la vista del Dashboard.
@@ -56,6 +57,81 @@ export const dashboardController = () => {
             document.getElementById('daily-sales-amount').textContent = 'Error';
         }
     };
+
+    /**
+     * @description Renderiza la sección de "Actividad Reciente" usando la estructura
+     *              de notificaciones emitidas por Socket.IO.
+     * @param {HTMLElement} activityList - Elemento UL donde se renderizan los items.
+     * @param {Array} items - Lista de notificaciones.
+     * @returns {void}
+     */
+    const renderSocketActivity = (activityList, items) => {
+        if (!activityList) return;
+
+        if (!Array.isArray(items) || items.length === 0) {
+            activityList.innerHTML = '<li>No hay actividad reciente para mostrar.</li>';
+            return;
+        }
+
+        const formatearFecha = (dateString) => {
+            if (!dateString) return 'N/A';
+            return new Date(dateString).toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        };
+
+        const dedupe = new Set();
+        const uniqueItems = items.filter((n) => {
+            const key = `${n?.type || ''}-${n?.data?.pedido_id || ''}-${n?.timestamp || ''}-${n?.message || ''}`;
+            if (dedupe.has(key)) return false;
+            dedupe.add(key);
+            return true;
+        });
+
+        activityList.innerHTML = uniqueItems.slice(0, 6).map((n) => `
+            <li><span class="activity-date">${formatearFecha(n.timestamp)}:</span> ${n.message || 'Evento'}</li>
+        `).join('');
+    };
+
+    /**
+     * @description Inicia los listeners de Socket.IO para mantener la UI de
+     *              "Actividad Reciente" actualizada en tiempo real.
+     * @returns {void}
+     */
+    const startRealtimeActivity = () => {
+        const activityList = document.getElementById('activity-list');
+        if (!activityList) return;
+
+        const socket = getSocket() || connectSocket();
+        if (!socket) return;
+
+        socket.off('historial_dashboard');
+        socket.off('actualizar_dashboard');
+
+        socket.on('historial_dashboard', (payload) => {
+            const items = Array.isArray(payload?.notifications) ? payload.notifications : [];
+            renderSocketActivity(activityList, items);
+        });
+
+        socket.on('actualizar_dashboard', (nuevo) => {
+            const existentes = Array.from(activityList.querySelectorAll('li')).map(li => li.outerHTML);
+            const nuevoItem = {
+                type: nuevo?.type,
+                message: nuevo?.message,
+                data: nuevo?.data,
+                timestamp: nuevo?.timestamp,
+            };
+
+            const formatearFecha = (dateString) => {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            const nuevoLi = `<li><span class="activity-date">${formatearFecha(nuevoItem.timestamp)}:</span> ${nuevoItem.message || 'Evento'}</li>`;
+            const html = [nuevoLi, ...existentes].slice(0, 6).join('');
+            activityList.innerHTML = html;
+        });
+
+        socket.emit('obtener_historial');
+    };
     
     /**
      * Obtiene y renderiza la lista de actividades recientes.
@@ -85,7 +161,7 @@ export const dashboardController = () => {
         }
     };
 
-    // --- INICIALIZACIÓN DEL CONTROLADOR (MODIFICADA) ---
+    // --- INICIALIZACIÓN DEL CONTROLADOR ---
 
     /**
      * Función de inicialización que se ejecuta al cargar el controlador.
@@ -93,6 +169,7 @@ export const dashboardController = () => {
     const init = () => {
         loadDashboardData(); // Carga los datos del dashboard al iniciar el controlador
         loadRecentActivity(); // Carga la actividad reciente al iniciar el controlador
+        startRealtimeActivity();
 
         // Inicia el carrusel
         const slides = document.querySelectorAll(".carousel__slide"); // Selecciona todas las diapositivas del carrusel.

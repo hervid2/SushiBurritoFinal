@@ -9,6 +9,7 @@ import { showAlert } from '../../helpers/alerts.js';
 import { showConfirmModal } from '../../helpers/modalHelper.js';
 import { api } from '../../helpers/solicitudes.js';
 import { validateEmail } from '../../helpers/auth.js';
+import { connectSocket, getSocket } from '../../helpers/socketClient.js';
 
 /**
  * Controlador principal para la vista de Generación de Factura.
@@ -22,12 +23,16 @@ export const waiterInvoiceGeneratorController = () => {
     const finalizeBtn = document.getElementById('finalize-invoice-btn'), finalInvoiceSection = document.getElementById('final-invoice-section'), finalInvoiceContent = document.getElementById('final-invoice-content'), finalInvoiceTitle = document.getElementById('final-invoice-title');
     const voidInvoiceBtn = document.getElementById('void-invoice-btn'), sendEmailBtn = document.getElementById('send-email-btn');
     const sendEmailModal = document.getElementById('send-email-modal'), sendEmailForm = document.getElementById('send-email-form'), emailInput = document.getElementById('email-input'), cancelEmailBtn = document.getElementById('cancel-email-btn');
+    const sendEmailSubmitBtn = document.getElementById('send-email-submit-btn');
     const editItemModal = document.getElementById('edit-item-modal'), editItemForm = document.getElementById('edit-item-form'), editItemName = document.getElementById('edit-item-name');
     const editItemQuantity = document.getElementById('edit-item-quantity'), cancelEditBtn = document.getElementById('cancel-edit-btn'), saveEditBtn = document.getElementById('save-edit-btn');
+    const addItemModal = document.getElementById('add-item-modal'), addItemForm = document.getElementById('add-item-form'), addItemProduct = document.getElementById('add-item-product');
+    const addItemQuantity = document.getElementById('add-item-quantity'), cancelAddBtn = document.getElementById('cancel-add-btn'), saveAddBtn = document.getElementById('save-add-btn'), addItemBtn = document.getElementById('add-item-btn');
 
     // --- Estado Local del Controlador ---
     let currentOrder = null; // Almacena el pedido cargado y sus ítems en memoria.
     let generatedInvoiceId = null; // Guarda el ID de la factura una vez generada.
+    let availableProducts = []; // Almacena los productos disponibles para añadir a la factura.
 
     // --- Lógica de Cálculo y Renderizado ---
 
@@ -45,6 +50,39 @@ export const waiterInvoiceGeneratorController = () => {
         summarySubtotal.textContent = `$${subtotal.toFixed(2)}`; // Muestra el subtotal formateado a 2 decimales.
         summaryTax.textContent = `$${tax.toFixed(2)}`; // Muestra el impuesto formateado a 2 decimales.
         summaryTotal.textContent = `$${total.toFixed(2)}`; // Muestra el total formateado a 2 decimales.
+    };
+
+    /**
+     * @description Inicia los listeners de Socket.IO para reaccionar a cambios
+     *              de estado/cancelación del pedido actualmente cargado.
+     * @returns {void}
+     */
+    const startRealtimeInvoice = () => {
+        const socket = getSocket() || connectSocket();
+        if (!socket) return;
+
+        socket.off('cambio_estado_pedido');
+        socket.off('pedido_cancelado');
+
+        socket.on('cambio_estado_pedido', (payload) => {
+            const pedidoId = payload?.data?.pedido_id;
+            if (!pedidoId || !currentOrder || currentOrder.pedido_id !== pedidoId) return;
+
+            showAlert(`El pedido #${pedidoId} cambió de estado. La información se recargará.`, 'info');
+            init(true);
+        });
+
+        socket.on('pedido_cancelado', (payload) => {
+            const pedidoId = payload?.data?.pedido_id;
+            if (!pedidoId || !currentOrder || currentOrder.pedido_id !== pedidoId) return;
+
+            showAlert(`El pedido #${pedidoId} fue cancelado. No es posible continuar con la factura.`, 'warning');
+            currentOrder = null;
+            detailsSection.style.display = 'none';
+            finalInvoiceSection.style.display = 'none';
+            document.getElementById('order-selection-section').style.display = 'block';
+            init(true);
+        });
     };
 
     /**
@@ -203,7 +241,12 @@ export const waiterInvoiceGeneratorController = () => {
     const handleSendEmail = async (e) => {
         e.preventDefault(); // Previene el comportamiento por defecto del formulario.
         const email = emailInput.value; // Obtiene el correo electrónico ingresado.
-        const submitBtn = sendEmailForm.querySelector('button[type="submit"]'); // Obtiene el botón de envío del formulario.
+        const submitBtn = sendEmailSubmitBtn; // Obtiene el botón de envío del modal.
+
+        if (!submitBtn) {
+            showAlert('No se encontró el botón de envío del formulario.', 'error');
+            return;
+        }
 
         if (validateEmail(email) && generatedInvoiceId) { // Verifica que el correo sea válido y que haya una factura generada.
             const originalButtonText = submitBtn.innerHTML; // Guarda el texto original del botón de envío.
@@ -225,6 +268,69 @@ export const waiterInvoiceGeneratorController = () => {
         }
     };
 
+    /**
+     * Carga los productos disponibles para añadir a la factura.
+     */
+    const loadAvailableProducts = async () => {
+        try {
+            availableProducts = await api.get('productos');
+            addItemProduct.innerHTML = '<option value="">-- Seleccione un producto --</option>' +
+                availableProducts.map(p => `<option value="${p.producto_id}">${p.nombre_producto} - $${parseFloat(p.valor_neto).toFixed(2)}</option>`).join('');
+        } catch (error) {
+            showAlert(error.message, 'error');
+        }
+    };
+
+    /**
+     * Abre el modal para añadir un nuevo producto.
+     */
+    const handleAddItem = () => {
+        addItemForm.reset();
+        addItemQuantity.value = 1;
+        loadAvailableProducts();
+        addItemModal.classList.add('is-active');
+    };
+
+    /**
+     * Guarda un nuevo producto en la factura.
+     */
+    const handleSaveAdd = async () => {
+        const productId = addItemProduct.value;
+        const quantity = parseInt(addItemQuantity.value);
+
+        if (!productId || !quantity || quantity < 1) {
+            showAlert('Por favor, seleccione un producto y una cantidad válida.', 'warning');
+            return;
+        }
+
+        const selectedProduct = availableProducts.find(p => p.producto_id == productId);
+        if (!selectedProduct) {
+            showAlert('Producto no encontrado.', 'error');
+            return;
+        }
+
+        // Verificar si el producto ya está en el pedido
+        const existingItemIndex = currentOrder.Productos.findIndex(p => p.producto_id == productId);
+        if (existingItemIndex !== -1) {
+            // Si ya existe, solo actualizamos la cantidad
+            currentOrder.Productos[existingItemIndex].DetallePedido.cantidad += quantity;
+        } else {
+            // Si no existe, lo agregamos como nuevo
+            currentOrder.Productos.push({
+                producto_id: selectedProduct.producto_id,
+                nombre_producto: selectedProduct.nombre_producto,
+                valor_neto: selectedProduct.valor_neto,
+                DetallePedido: {
+                    cantidad: quantity
+                }
+            });
+        }
+
+        renderTable();
+        addItemModal.classList.remove('is-active');
+        showAlert('Producto añadido correctamente.', 'success');
+    };
+
     // --- Inicialización del Controlador ---
     /**
      * Inicializa la vista, cargando los datos necesarios para los selectores.
@@ -236,6 +342,7 @@ export const waiterInvoiceGeneratorController = () => {
             if (!isRefresh) { 
                 const paymentMethods = await api.get('metodos-pago'); // Llama a la API para obtener la lista de métodos de pago.
                 paymentMethodSelect.innerHTML = paymentMethods.map(p => `<option value="${p.metodo_pago_id}">${p.nombre_metodo}</option>`).join(''); // Agrega los métodos de pago al selector.
+                await loadAvailableProducts(); // Carga los productos disponibles.
             }
             // Carga (o recarga) la lista de pedidos en estado 'entregado'.
             const orders = await api.get('pedidos?estado=entregado'); // Llama a la API para obtener los pedidos 'entregado'.
@@ -262,15 +369,21 @@ export const waiterInvoiceGeneratorController = () => {
     finalizeBtn.onclick = handleFinalizeInvoice; // Asigna el manejador de eventos para finalizar la factura.
     voidInvoiceBtn.onclick = handleVoidInvoice; // Asigna el manejador de eventos para anular la factura.
     sendEmailBtn.onclick = () => sendEmailModal.classList.add('is-active'); // Abre el modal de envío de correo.
+    addItemBtn.onclick = handleAddItem; // Abre el modal para añadir producto.
     
     cancelEditBtn.onclick = () => editItemModal.classList.remove('is-active'); // Cierra el modal de edición.
     editItemModal.querySelector('.modal__close-btn').onclick = () => editItemModal.classList.remove('is-active'); // Cierra el modal de edición.
     saveEditBtn.onclick = handleSaveEdit; // Guarda los cambios de edición.
+
+    cancelAddBtn.onclick = () => addItemModal.classList.remove('is-active'); // Cierra el modal de añadir.
+    addItemModal.querySelector('.modal__close-btn').onclick = () => addItemModal.classList.remove('is-active'); // Cierra el modal de añadir.
+    saveAddBtn.onclick = handleSaveAdd; // Guarda el nuevo producto.
 
     cancelEmailBtn.onclick = () => sendEmailModal.classList.remove('is-active'); // Cierra el modal de envío de correo.
     sendEmailModal.querySelector('.modal__close-btn').onclick = () => sendEmailModal.classList.remove('is-active'); // Cierra el modal de envío de correo.
     sendEmailForm.onsubmit = handleSendEmail; // Asigna el manejador de eventos para enviar el correo.
 
     init(); // Inicializa la vista.
+    startRealtimeInvoice();
 };
 
