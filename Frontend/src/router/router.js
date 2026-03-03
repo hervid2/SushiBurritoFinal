@@ -22,6 +22,7 @@ import { navigationController } from "../views/shared/navigationController.js";
 import { showAlert } from '../helpers/alerts.js';
 import { loadView } from '../helpers/loadview.js'; 
 import { connectSocket, disconnectSocket } from '../helpers/socketClient.js';
+import { env } from '../config/env.js';
 
 /**
  * @description Mapa de todas las rutas de la aplicación.
@@ -91,7 +92,7 @@ const updateSharedUI = (isAuthenticated, userRole, route) => {
 
             newLogoutButton.addEventListener('click', async () => {
                 try {
-                    await fetch('http://localhost:3000/api/auth/logout', {
+                    await fetch(`${env.apiUrl}/auth/logout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include'

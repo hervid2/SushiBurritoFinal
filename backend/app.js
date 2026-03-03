@@ -13,9 +13,13 @@ import cookieParser from 'cookie-parser'; // Middleware para parsear cookies ent
 import dotenv from 'dotenv';        // Módulo para cargar variables de entorno desde un archivo .env.
 import db from './src/models/index.js'; // Objeto de base de datos inicializado por Sequelize.
 import { createSocketServer } from './src/socket/index.js'; // Configuración de Socket.IO
+import { env, validateEnvironment } from './src/config/env.js';
+import { applySecurityHeaders } from './src/middleware/securityHeaders.middleware.js';
+import { createAuthRateLimiter } from './src/middleware/rateLimit.middleware.js';
 
 // Carga las variables de entorno definidas en el archivo .env a process.env.
 dotenv.config();
+validateEnvironment();
 
 // --- Importación de los Módulos de Rutas ---
 // Cada archivo de rutas define los endpoints para una entidad específica.
@@ -31,6 +35,11 @@ import statsRoutes from './src/routes/stats.routes.js';
 
 // Se crea una instancia de la aplicación Express.
 const app = express();
+const authRateLimiter = createAuthRateLimiter();
+
+if (env.nodeEnv === 'production') {
+    app.set('trust proxy', 1);
+}
 
 // --- Configuración de Middlewares ---
 // Un middleware es una función que procesa una petición antes de que llegue a su manejador de ruta final.
@@ -38,9 +47,18 @@ const app = express();
 // app.use(cors()): Habilita CORS para permitir peticiones desde el frontend
 // que se sirve en un origen diferente (ej. localhost:5173).
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        if (!origin || env.frontendOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error('Origen no permitido por CORS.'));
+    },
     credentials: true
 }));
+
+app.use(applySecurityHeaders);
 
 // app.use(express.json()): Parsea las peticiones entrantes con payloads en formato JSON.
 // Esto permite acceder a los datos del cuerpo de la petición a través de `req.body`.
@@ -58,6 +76,7 @@ app.get('/api', (req, res) => {
 
 // Se registran los routers para cada entidad bajo un prefijo de ruta base.
 // Por ejemplo, todas las rutas definidas en 'authRoutes' estarán bajo '/api/auth'.
+app.use('/api/auth', authRateLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/categorias', categoriaRoutes);
@@ -76,7 +95,7 @@ db.sequelize.sync().then(() => {
     console.log('Base de datos sincronizada.');
     
     // Se obtiene el puerto de las variables de entorno, con un valor por defecto de 3000.
-    const PORT = process.env.PORT || 3000;
+    const PORT = env.port;
     
     // Crear servidor HTTP para soporte de Socket.IO
     const httpServer = createServer(app);

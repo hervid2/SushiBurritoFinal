@@ -58,11 +58,12 @@ Para poner en marcha el proyecto, necesitarás clonar este repositorio y configu
     npm install
     ```
 
-3.  **Configura las variables de entorno:**
-    -   Crea una copia del archivo `.env.example` y renómbrala a `.env`.
-    -   Abre el archivo `.env` y rellena todas las variables con tus credenciales:
+3.  **Configura las variables de entorno (globales):**
+    -   Crea una copia del archivo `backend/.env.example` y renómbrala a `backend/.env`.
+    -   Abre el archivo `backend/.env` y rellena todas las variables con tus credenciales:
         ```env
         # Configuración del Servidor
+        NODE_ENV=development
         PORT=3000
 
         # Configuración de la Base de Datos
@@ -74,8 +75,20 @@ Para poner en marcha el proyecto, necesitarás clonar este repositorio y configu
         # Secretos para JSON Web Token (genera cadenas aleatorias y seguras)
         ACCESS_TOKEN_SECRET=tu_secreto_super_seguro_para_access_token
         REFRESH_TOKEN_SECRET=tu_otro_secreto_super_seguro_para_refresh_token
-        TOKEN_EXPIRATION=1h
-        REFRESH_EXPIRATION=7d
+        ACCESS_TOKEN_EXPIRES_IN=15m
+        REFRESH_TOKEN_EXPIRES_IN=7d
+        REFRESH_TOKEN_MAX_AGE_MS=604800000
+        REFRESH_COOKIE_NAME=refreshToken
+        REFRESH_COOKIE_SAME_SITE=lax
+        REFRESH_COOKIE_SECURE=false
+
+        # Frontend permitido para CORS (acepta múltiples orígenes separados por coma)
+        FRONTEND_URL=http://localhost:5173
+        RESET_PASSWORD_URL=http://localhost:5173/#/reset-password
+
+        # Rate limit de autenticación
+        AUTH_RATE_LIMIT_WINDOW_MS=900000
+        AUTH_RATE_LIMIT_MAX_REQUESTS=20
 
         # Configuración para envío de correos (ej. con Gmail)
         EMAIL_SERVICE=gmail
@@ -83,9 +96,17 @@ Para poner en marcha el proyecto, necesitarás clonar este repositorio y configu
         EMAIL_PASSWORD=tu_contraseña_de_aplicacion_de_gmail
         ```
 
-4.  **Crea la base de datos:** Asegúrate de crear una base de datos en MySQL con el nombre que especificaste en `DB_NAME`.
+4.  **Configura variables de entorno del Frontend (Vite):**
+    -   Crea una copia de `Frontend/.env.example` y renómbrala a `Frontend/.env`.
+    -   Define:
+        ```env
+        VITE_API_URL=http://localhost:3000/api
+        VITE_SOCKET_URL=http://localhost:3000
+        ```
 
-5.  **Puebla la base de datos con datos iniciales:**
+5.  **Crea la base de datos:** Asegúrate de crear una base de datos en MySQL con el nombre que especificaste en `DB_NAME`.
+
+6.  **Puebla la base de datos con datos iniciales:**
     -   El archivo `src/seed.js` está preparado para crear los roles y un usuario administrador por defecto.
     -   Ejecuta el siguiente comando:
     ```bash
@@ -129,9 +150,29 @@ Debes tener dos terminales abiertas, una para el backend y otra para el frontend
 
 ---
 
-## 👨‍💻 Autor
+## 🧪 Pruebas
 
-**Hernán David Cardona Becerra**
+### Backend
+```bash
+npm test
+```
 
--   **GitHub:** [hervid2](https://github.com/hervid2)
--   **LinkedIn:** [Hernán David Cardona](https://www.linkedin.com/in/hern%C3%A1n-david-cardona-becerra-%F0%9F%91%A8%F0%9F%8F%BB%E2%80%8D%F0%9F%92%BB-28598434a/)
+Incluye:
+- 2 pruebas unitarias (`verifyToken` y `rate limiter`).
+- 1 prueba de integración (cabeceras de seguridad + limitación en `/api/auth/login`).
+
+### Frontend
+```bash
+npm test
+```
+
+Incluye pruebas unitarias de helpers de autenticación.
+
+### E2E
+```bash
+npm run test:e2e
+```
+
+Prueba de login E2E del rol administrador con navegación a dashboard.
+
+---

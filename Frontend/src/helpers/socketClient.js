@@ -7,8 +7,9 @@
 
 import { io } from 'socket.io-client';
 import { showAlert } from './alerts.js';
+import { env } from '../config/env.js';
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = env.socketUrl;
 
 let socketInstance = null;
 let socketHandlersRegistrados = false;

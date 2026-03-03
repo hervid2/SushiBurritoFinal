@@ -7,10 +7,11 @@
 
 import { showAlert } from './alerts.js';
 import { navigateTo } from '../router/router.js';
+import { env } from '../config/env.js';
 
 // URL base del backend. Centralizarla aquí facilita el cambio
 // entre entornos de desarrollo y producción.
-const API_URL = 'http://localhost:3000/api';
+const API_URL = env.apiUrl;
 const DEFAULT_HEADERS = { 'Content-Type': 'application/json' };
 
 let refreshInFlightPromise = null;

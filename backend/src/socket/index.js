@@ -7,6 +7,7 @@
 import { Server } from 'socket.io';
 import { authenticateSocket, assignUserToRooms } from './middleware.js';
 import { registerSocketEvents } from './events.js';
+import { env } from '../config/env.js';
 
 /**
  * Crea y configura una instancia de Socket.IO
@@ -17,7 +18,7 @@ export const createSocketServer = (httpServer) => {
     // Crear instancia de Socket.IO con configuración de CORS
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.FRONTEND_URL || "http://localhost:5173",
+            origin: env.frontendOrigins,
             methods: ["GET", "POST"],
             credentials: true
         },

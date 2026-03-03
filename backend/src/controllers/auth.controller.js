@@ -10,11 +10,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer'; 
+import { env } from '../config/env.js';
 
-const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || process.env.TOKEN_EXPIRATION || '15m';
-const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || process.env.REFRESH_EXPIRATION || '7d';
-const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'refreshToken';
-const REFRESH_TOKEN_MAX_AGE_MS = Number(process.env.REFRESH_TOKEN_MAX_AGE_MS) || (7 * 24 * 60 * 60 * 1000);
+const ACCESS_TOKEN_EXPIRES_IN = env.accessTokenExpiresIn;
+const REFRESH_TOKEN_EXPIRES_IN = env.refreshTokenExpiresIn;
+const REFRESH_COOKIE_NAME = env.refreshCookieName;
+const REFRESH_TOKEN_MAX_AGE_MS = env.refreshTokenMaxAgeMs;
 
 /**
  * Crea un access token de corta duración para autorizar peticiones a la API.
@@ -56,8 +57,8 @@ const hashToken = (token) => {
 const setRefreshCookie = (res, refreshTokenValue) => {
     res.cookie(REFRESH_COOKIE_NAME, refreshTokenValue, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: env.refreshCookieSecure,
+        sameSite: env.refreshCookieSameSite,
         path: '/api/auth',
         maxAge: REFRESH_TOKEN_MAX_AGE_MS
     });
@@ -70,8 +71,8 @@ const setRefreshCookie = (res, refreshTokenValue) => {
 const clearRefreshCookie = (res) => {
     res.clearCookie(REFRESH_COOKIE_NAME, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: env.refreshCookieSecure,
+        sameSite: env.refreshCookieSameSite,
         path: '/api/auth'
     });
 };
@@ -257,7 +258,7 @@ export const forgotPassword = async (req, res) => {
         const resetToken = jwt.sign({ id: usuario.usuario_id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
 
         // Se construye el enlace que apunta a la vista del frontend.
-        const resetLink = `http://localhost:5173/#/reset-password?token=${resetToken}`;
+        const resetLink = `${env.resetPasswordUrl}?token=${resetToken}`;
     
         await sendPasswordResetEmail(usuario.correo, resetLink); 
         

@@ -6,6 +6,7 @@
 
 import jwt from 'jsonwebtoken';
 import db from '../models/index.js';
+import { env } from '../config/env.js';
 
 /**
  * Middleware de autenticación para Socket.IO
@@ -23,7 +24,7 @@ export const authenticateSocket = async (socket, next) => {
         }
 
         // Verificar el token JWT con ACCESS_TOKEN_SECRET
-        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const decoded = jwt.verify(token, env.accessTokenSecret);
         
         // Consultar usuario en BD para obtener nombre y rol
         const usuario = await db.Usuario.findByPk(decoded.id, {

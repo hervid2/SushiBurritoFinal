@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "db:seed": "node src/utils/seed.js"
+    "db:seed": "node src/utils/seed.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -27,7 +29,9 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.1",
+    "vitest": "^2.1.8"
   },
   "description": "Servidor para la aplicación de gestión de restaurante Sushi Burrito."
 }
