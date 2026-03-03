@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 const Usuario = db.Usuario;
 
 
+
 /* =====================================================
    LOGIN
 ===================================================== */
@@ -41,13 +42,13 @@ export const login = async (req, res) => {
         }
 
         /* 🔥 VALIDACIÓN CLAVE */
-        if (usuario.must_change_password) {
-            return res.status(200).json({
-                mustChangePassword: true,
-                usuario_id: usuario.usuario_id,
-                message: "Debe cambiar su contraseña antes de continuar."
-            });
-        }
+        // if (usuario.must_change_password) {
+        //     return res.status(200).json({
+        //         mustChangePassword: true,
+        //         usuario_id: usuario.usuario_id,
+        //         message: "Debe cambiar su contraseña antes de continuar."
+        //     });
+        // }
 
         /* =====================================================
            GENERAR TOKENS

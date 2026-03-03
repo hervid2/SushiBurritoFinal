@@ -16,7 +16,7 @@ const Usuario = db.Usuario;
 ===================================================== */
 export const createUser = async (req, res) => {
     try {
-        const { correo, rol_id } = req.body;
+        const { nombre, correo, rol_id } = req.body;
 
         const usuarioExistente = await Usuario.findOne({ where: { correo } });
 
@@ -34,7 +34,7 @@ export const createUser = async (req, res) => {
 
         // ⚠️ NO encriptamos aquí (el modelo lo hace automáticamente)
         await Usuario.create({
-    nombre: "Pendiente",
+    nombre,
     correo,
     rol_id,
     contraseña: contraseñaTemporal,
@@ -47,8 +47,7 @@ try {
     console.error("⚠️ Error enviando correo:", emailError);
 }
 
-        // Enviar correo
-        await sendTemporaryPasswordEmail(correo, contraseñaTemporal);
+       
 
         res.status(201).json({
             message: "Usuario creado y contraseña temporal enviada."
@@ -263,7 +262,16 @@ export const deleteUserPermanent = async (req, res) => {
 ===================================================== */
 export const changePassword = async (req, res) => {
     try {
-        const { usuario_id, nuevaContraseña } = req.body;
+
+        const usuario_id = req.userId; // 🔥 viene del token
+        const { nuevaContraseña } = req.body;
+
+        // 🔐 Validación mínima
+        if (!nuevaContraseña || nuevaContraseña.length < 8) {
+            return res.status(400).json({
+                message: "La contraseña debe tener mínimo 8 caracteres."
+            });
+        }
 
         const usuario = await Usuario.findByPk(usuario_id);
 
@@ -273,8 +281,7 @@ export const changePassword = async (req, res) => {
             });
         }
 
-        // ⚠️ No encriptamos manualmente
-        usuario.contraseña = nuevaContraseña;
+        usuario.contraseña = nuevaContraseña; // el modelo la encripta
         usuario.must_change_password = false;
 
         await usuario.save();
@@ -290,7 +297,4 @@ export const changePassword = async (req, res) => {
         });
     }
 };
-
-
-
 
