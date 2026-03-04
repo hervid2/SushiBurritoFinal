@@ -20,7 +20,7 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
             subject: 'Tu contraseña temporal',
             html: `
                 <div style="font-family: Arial, sans-serif;">
-                    <h2>Bienvenido al sistema</h2>
+                    <h2>Bienvenido al sistema de SushiBurrito</h2>
                     <p>Tu cuenta ha sido creada correctamente.</p>
                     
                     <p><strong>Contraseña temporal:</strong></p>
