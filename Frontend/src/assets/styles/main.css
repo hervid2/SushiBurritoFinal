@@ -131,3 +131,12 @@ main#app {
 .fade-in {
     animation: fadeIn var(--transition-normal) forwards;
 }
+
+.auth-layout__visual--change-password {
+    /* Subimos 3 niveles: de styles -> assets -> src -> raíz, y luego entramos a public */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+                      url('../../../public/imagenLogin.jpg'); 
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
