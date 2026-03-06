@@ -10,10 +10,8 @@ import jwt from 'jsonwebtoken';
 
 const Usuario = db.Usuario;
 
-
-
 /* =====================================================
-   LOGIN
+    LOGIN
 ===================================================== */
 export const login = async (req, res) => {
     try {
@@ -41,17 +39,17 @@ export const login = async (req, res) => {
             });
         }
 
-        /* 🔥 VALIDACIÓN CLAVE */
-        // if (usuario.must_change_password) {
-        //     return res.status(200).json({
-        //         mustChangePassword: true,
-        //         usuario_id: usuario.usuario_id,
-        //         message: "Debe cambiar su contraseña antes de continuar."
-        //     });
-        // }
+        /* 🔥 VALIDACIÓN CLAVE TEMPORAL */
+        if (usuario.must_change_password) {
+            return res.status(200).json({
+                mustChangePassword: true,
+                usuario_id: usuario.usuario_id,
+                message: "Debe cambiar su contraseña antes de continuar."
+            });
+        }
 
         /* =====================================================
-           GENERAR TOKENS
+            GENERAR TOKENS
         ===================================================== */
         const accessToken = jwt.sign(
             { id: usuario.usuario_id },
@@ -81,9 +79,51 @@ export const login = async (req, res) => {
     }
 };
 
+/* =====================================================
+   CHANGE PASSWORD (Versión Segura)
+===================================================== */
+export const changePassword = async (req, res) => {
+    try {
+        const { usuario_id, nuevaContraseña } = req.body;
+
+        if (!usuario_id || !nuevaContraseña) {
+            return res.status(400).json({ 
+                message: "ID de usuario y nueva contraseña son requeridos." 
+            });
+        }
+
+        // 1. Encriptar la nueva contraseña aquí
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(nuevaContraseña, salt);
+
+        // 2. Usar Usuario.update en lugar de usuario.save()
+        // Esto es más directo y suele evitar los hooks de instancia que causan el doble hash
+        const [rowsUpdated] = await Usuario.update(
+            { 
+                contraseña: hashedPassword, 
+                must_change_password: false 
+            },
+            { 
+                where: { usuario_id: usuario_id } 
+            }
+        );
+
+        if (rowsUpdated === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado o no hubo cambios." });
+        }
+
+        res.status(200).json({ 
+            message: "Contraseña actualizada exitosamente. Por favor, inicie sesión." 
+        });
+
+    } catch (error) {
+        console.error("Error al cambiar contraseña:", error);
+        res.status(500).json({ message: "Error interno al procesar el cambio de contraseña." });
+    }
+};
 
 /* =====================================================
-   REFRESH TOKEN
+    REFRESH TOKEN
 ===================================================== */
 export const refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
@@ -111,13 +151,7 @@ export const refreshToken = async (req, res) => {
         });
 
     } catch (error) {
-    console.error("🔥 ERROR REAL LOGIN:");
-    console.error(error);
-    console.error("STACK:", error.stack);
-
-    res.status(500).json({
-        message: error.message
-    });
-}
-
+        console.error("🔥 ERROR REFRESH TOKEN:", error.message);
+        res.status(500).json({ message: "Sesión expirada o token inválido." });
+    }
 };

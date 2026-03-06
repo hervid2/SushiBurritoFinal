@@ -18,4 +18,10 @@ router.post('/login', authController.login);
 ===================================================== */
 router.post('/refresh-token', authController.refreshToken);
 
+/* =====================================================
+   CHANGE PASSWORD (NUEVA RUTA)
+   Esta ruta recibe: usuario_id y nuevaContraseña
+===================================================== */
+router.post('/change-password', authController.changePassword);
+
 export default router;
