@@ -1,39 +1,42 @@
-<!-- src/views/admin/users/usersManagement.html -->
-
 <div class="users-management-page">
     <div class="users-management__header">
         <h2 class="users-management__title">Gestión de Usuarios</h2>
-        <button class="btn btn--primary" id="add-user-btn">
-            <i class="fas fa-plus"></i> Nuevo Usuario
-        </button>
+        <div class="header-actions">
+            <button class="btn btn--primary" id="add-user-btn">
+                <i class="fas fa-plus"></i> Nuevo Usuario
+            </button>
+            <button class="btn btn--secondary" id="view-deleted-btn">
+                <i class="fas fa-trash"></i> Ver Papelera
+            </button>
+        </div>
     </div>
 
-    <section class="user-form-section" id="user-form-section" style="display: none;">
+    <section class="user-form-section" id="user-form-section" style="display: none; margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h3><span id="form-title">Añadir Nuevo Usuario</span></h3>
         <form id="user-form" class="management-form">
             <input type="hidden" id="user-id">
+            
             <div class="form-group">
                 <label for="name" class="form-label">Nombre:</label>
                 <input type="text" id="name" class="form-control" required>
             </div>
+
             <div class="form-group">
                 <label for="email" class="form-label">Email:</label>
                 <input type="email" id="email" class="form-control" required>
             </div>
-            <div class="form-group">
-                <label for="password" class="form-label">Contraseña:</label>
-                <input type="password" id="password" class="form-control" title="Mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y caracter especial.">
-                <small class="form-text">Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 caracter especial.</small>
-            </div>
+
             <div class="form-group">
                 <label for="role" class="form-label">Rol:</label>
                 <select id="role" class="form-control" required>
-                    <option value="mesero">Mesero</option>
-                    <option value="cocinero">Cocina</option>
-                    <option value="administrador">Administrador</option>
+                    <option value="">Seleccione un rol...</option>
+                    <option value="1">Administrador</option>
+                    <option value="2">Mesero</option>
+                    <option value="3">Cocinero</option>
                 </select>
             </div>
-            <div class="form-actions">
+
+            <div class="form-actions" style="margin-top: 15px;">
                 <button type="button" class="btn btn--secondary" id="cancel-user-form-btn">Cancelar</button>
                 <button type="submit" class="btn btn--success" id="save-user-btn">Guardar</button>
             </div>
@@ -52,9 +55,7 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- El contenido de los usuarios se generará aquí por JS -->
-            </tbody>
+                </tbody>
         </table>
     </div>
-    <div class="pagination-container" id="users-pagination"></div>
 </div>
