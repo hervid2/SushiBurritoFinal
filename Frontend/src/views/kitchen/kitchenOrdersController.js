@@ -7,6 +7,7 @@
 
 import { showAlert } from '../../helpers/alerts.js';
 import { api } from '../../helpers/solicitudes.js';
+import { connectSocket, getSocket } from '../../helpers/socketClient.js';
 
 /**
  * Controlador principal para la vista de la cocina.
@@ -42,6 +43,28 @@ export const kitchenOrdersController = (params) => {
         } catch (error) {
             ordersListContainer.innerHTML = `<div class="error-message">${error.message}</div>`; // Muestra un mensaje de error si falla la carga.
         }
+    };
+
+    /**
+     * @description Inicia los listeners de Socket.IO para refrescar la lista de pedidos
+     *              en las diferentes subvistas de cocina (pendiente, en_preparacion, preparado).
+     * @returns {void}
+     */
+    const startRealtimeKitchen = () => {
+        const socket = getSocket() || connectSocket();
+        if (!socket) return;
+
+        socket.off('nuevo_pedido');
+        socket.off('cambio_estado_pedido');
+        socket.off('pedido_cancelado');
+
+        const refrescarPedidos = () => {
+            loadOrders();
+        };
+
+        socket.on('nuevo_pedido', refrescarPedidos);
+        socket.on('cambio_estado_pedido', refrescarPedidos);
+        socket.on('pedido_cancelado', refrescarPedidos);
     };
 
     /**
@@ -150,4 +173,5 @@ export const kitchenOrdersController = (params) => {
     // --- Inicialización ---
     // Carga los pedidos iniciales en cuanto se monta la vista.
     loadOrders();
+    startRealtimeKitchen();
 };

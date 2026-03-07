@@ -51,7 +51,6 @@ export const loginController = () => {
             // --- Establecimiento de la Sesión en el Cliente ---
             // Si el login es exitoso, se guardan los datos de sesión en localStorage.
             localStorage.setItem('accessToken', result.accessToken);
-            localStorage.setItem('refreshToken', result.refreshToken);
             localStorage.setItem('userRole', result.rol);
             localStorage.setItem('isAuthenticated', 'true');
 

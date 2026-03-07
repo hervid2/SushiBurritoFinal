@@ -5,6 +5,7 @@
 // =================================================================
 
 import db from '../models/index.js';
+import { emitNuevoPedido, emitCambioEstado, emitPedidoCancelado, emitMesaActualizada } from '../socket/events.js';
 
 // Se desestructuran los modelos necesarios para un acceso más limpio.
 const { Pedido, DetallePedido, Mesa, Producto, sequelize } = db;
@@ -49,6 +50,21 @@ export const createPedido = async (req, res) => {
 
         // Si todas las operaciones son exitosas, se confirman los cambios.
         await t.commit();
+        
+        // Obtener el pedido completo con sus relaciones para notificación
+        const pedidoCompleto = await Pedido.findByPk(pedido.pedido_id, {
+            include: [
+                { model: db.Usuario, attributes: ['nombre'] },
+                { model: db.Mesa, attributes: ['numero_mesa'] }
+            ]
+        });
+        
+        // Emitir notificación en tiempo real via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            emitNuevoPedido(io, pedidoCompleto.toJSON());
+        }
+        
         res.status(201).send({ message: "Pedido creado exitosamente.", pedido });
 
     } catch (error) {
@@ -147,8 +163,33 @@ export const updatePedidoStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { estado } = req.body;
+        
+        // Obtener el pedido actual para conocer el estado anterior
+        const pedidoActual = await Pedido.findByPk(id);
+        if (!pedidoActual) {
+            return res.status(404).send({ message: `No se encontró el pedido con id=${id}.` });
+        }
+        
+        const estadoAnterior = pedidoActual.estado;
+        
+        // Actualizar el estado
         const [num] = await Pedido.update({ estado }, { where: { pedido_id: id } });
+        
         if (num == 1) {
+            // Obtener el pedido actualizado con sus relaciones para notificación
+            const pedidoActualizado = await Pedido.findByPk(id, {
+                include: [
+                    { model: db.Usuario, attributes: ['nombre'] },
+                    { model: db.Mesa, attributes: ['numero_mesa'] }
+                ]
+            });
+            
+            // Emitir notificación en tiempo real via Socket.IO
+            const io = req.app.get('io');
+            if (io) {
+                emitCambioEstado(io, pedidoActualizado.toJSON(), estadoAnterior);
+            }
+            
             res.send({ message: "Estado del pedido actualizado exitosamente." });
         } else {
             res.status(404).send({ message: `No se encontró el pedido con id=${id}.` });
@@ -205,7 +246,22 @@ export const deletePedido = async (req, res) => {
         await Mesa.update({ estado: 'disponible' }, { where: { mesa_id: pedido.mesa_id }, transaction: t });
         // Se elimina el pedido. La opción 'ON DELETE CASCADE' en la BD se encarga de los detalles.
         await Pedido.destroy({ where: { pedido_id: id }, transaction: t });
+        
+        // Obtener datos del pedido para notificación
+        const pedidoParaNotificacion = {
+            pedido_id: pedido.pedido_id,
+            mesa_id: pedido.mesa_id,
+            Mesa: await Mesa.findByPk(pedido.mesa_id, { attributes: ['numero_mesa'], transaction: t })
+        };
+        
         await t.commit();
+        
+        // Emitir notificación en tiempo real via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            emitPedidoCancelado(io, pedidoParaNotificacion);
+        }
+        
         res.status(200).send({ message: "Pedido cancelado y eliminado exitosamente." });
     } catch (error) {
         await t.rollback();

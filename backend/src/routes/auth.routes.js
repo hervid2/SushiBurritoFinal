@@ -30,5 +30,9 @@ router.post('/reset-password', authController.resetPassword);
 // Acepta peticiones POST a /api/auth/refresh-token.
 router.post('/refresh-token', authController.refreshToken);
 
+// Ruta para cerrar sesión y revocar el refresh token actual.
+// Acepta peticiones POST a /api/auth/logout.
+router.post('/logout', authController.logout);
+
 // Se exporta el router configurado para ser utilizado en app.js.
 export default router;

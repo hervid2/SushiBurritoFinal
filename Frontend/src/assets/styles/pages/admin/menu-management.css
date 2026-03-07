@@ -125,6 +125,24 @@
     border-color: var(--color-primary);
 }
 
+.restore-panel {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.restore-content {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--color-light-gray);
+    border-radius: var(--border-radius);
+    background-color: var(--color-light-bg-alt);
+}
+
+.restore-content h4 {
+    margin: 0 0 0.75rem;
+    color: var(--color-secondary-dark);
+}
 
 .category-badge {
     padding: 0.25rem 0.75rem;

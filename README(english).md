@@ -64,13 +64,15 @@ Install dependencies:
 
 npm install
 
-Set up environment variables:
+Set up global environment variables:
 
-Create a copy of the .env.example file and rename it to .env.
+Create a copy of `backend/.env.example` and rename it to `backend/.env`.
 
-Open the .env file and fill in all the variables with your credentials:
+Open `backend/.env` and fill in all variables with your credentials:
 
+```env
 # Server Configuration
+NODE_ENV=development
 PORT=3000
 
 # Database Configuration
@@ -79,18 +81,42 @@ DB_USER=your_mysql_user
 DB_PASSWORD=your_mysql_password
 DB_NAME=sushi_burrito_db
 
-# Secrets for JSON Web Token (generate random and secure strings)
+# JSON Web Token secrets (use random and secure values)
 ACCESS_TOKEN_SECRET=your_super_secret_for_access_token
 REFRESH_TOKEN_SECRET=your_other_super_secret_for_refresh_token
-TOKEN_EXPIRATION=1h
-REFRESH_EXPIRATION=7d
+ACCESS_TOKEN_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_IN=7d
+REFRESH_TOKEN_MAX_AGE_MS=604800000
+REFRESH_COOKIE_NAME=refreshToken
+REFRESH_COOKIE_SAME_SITE=lax
+REFRESH_COOKIE_SECURE=false
 
-# Configuration for sending emails (e.g., with Gmail)
+# Frontend allowed for CORS (supports comma-separated origins)
+FRONTEND_URL=http://localhost:5173
+RESET_PASSWORD_URL=http://localhost:5173/#/reset-password
+
+# Basic auth endpoint protection
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX_REQUESTS=20
+
+# Email configuration (e.g. Gmail)
 EMAIL_SERVICE=gmail
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_gmail_app_password
+```
 
-Create the database: Make sure to create a database in MySQL with the name you specified in DB_NAME.
+Set up Frontend environment variables (Vite):
+
+Create a copy of `Frontend/.env.example` and rename it to `Frontend/.env`.
+
+Define:
+
+```env
+VITE_API_URL=http://localhost:3000/api
+VITE_SOCKET_URL=http://localhost:3000
+```
+
+Create the database: Make sure to create a database in MySQL with the name you specified in `DB_NAME`.
 
 Seed the database with initial data:
 
@@ -132,9 +158,32 @@ The application will be available at http://localhost:5173.
 
 Now you can open http://localhost:5173 in your browser and start using the application!
 
-## 👨‍💻 Autor
+---
 
-**Hernán David Cardona Becerra**
+🧪 Testing
 
--   **GitHub:** [hervid2](https://github.com/hervid2)
--   **LinkedIn:** [Hernán David Cardona](https://www.linkedin.com/in/hern%C3%A1n-david-cardona-becerra-%F0%9F%91%A8%F0%9F%8F%BB%E2%80%8D%F0%9F%92%BB-28598434a/)
+Backend:
+
+```bash
+npm test
+```
+
+Includes:
+- 2 unit tests (`verifyToken` and `rate limiter`).
+- 1 integration test (security headers + auth endpoint throttling).
+
+Frontend:
+
+```bash
+npm test
+```
+
+Includes unit tests for auth helpers.
+
+E2E:
+
+```bash
+npm run test:e2e
+```
+
+Includes 1 login E2E flow for administrator navigation to dashboard.

@@ -5,14 +5,18 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "db:seed": "node src/seed.js"
+    "db:seed": "node src/utils/seed.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "axios": "^1.13.5",
     "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
@@ -20,10 +24,14 @@
     "mysql2": "^3.14.0",
     "nodemailer": "^7.0.3",
     "pdfkit": "^0.17.1",
-    "sequelize": "^6.35.2"
+    "sequelize": "^6.35.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.1",
+    "vitest": "^2.1.8"
   },
   "description": "Servidor para la aplicación de gestión de restaurante Sushi Burrito."
 }

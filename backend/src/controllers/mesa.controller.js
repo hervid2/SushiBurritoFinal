@@ -254,7 +254,7 @@ export const restoreMesa = async (req, res) => {
 
 /**
  * Elimina permanentemente una mesa (hard delete).
- * ADVERTENCIA: Esta acción es irreversible.
+ * ADVERTENCIA: Esta acción es irreversible y se recomienda no implementar en interfaz de usuario.
  */
 export const permanentDeleteMesa = async (req, res) => {
     try {

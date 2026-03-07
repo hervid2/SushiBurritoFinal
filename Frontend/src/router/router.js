@@ -21,6 +21,8 @@ import { waiterOrdersStatusController } from "../views/waiter/waiterOrdersStatus
 import { navigationController } from "../views/shared/navigationController.js";
 import { showAlert } from '../helpers/alerts.js';
 import { loadView } from '../helpers/loadview.js'; 
+import { connectSocket, disconnectSocket } from '../helpers/socketClient.js';
+import { env } from '../config/env.js';
 
 /**
  * @description Mapa de todas las rutas de la aplicación.
@@ -88,9 +90,22 @@ const updateSharedUI = (isAuthenticated, userRole, route) => {
             const newLogoutButton = logoutButton.cloneNode(true);
             logoutButton.parentNode.replaceChild(newLogoutButton, logoutButton);
 
-            newLogoutButton.addEventListener('click', () => {
+            newLogoutButton.addEventListener('click', async () => {
+                try {
+                    await fetch(`${env.apiUrl}/auth/logout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include'
+                    });
+                } catch (error) {
+                    // Aunque falle el backend, se limpia sesión local para mantener consistencia.
+                }
+
                 showAlert('Has cerrado sesión.', 'success');
-                localStorage.clear();
+                disconnectSocket();
+                localStorage.removeItem('isAuthenticated');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('accessToken');
                 navigateTo('/login'); 
             });
         }
@@ -141,6 +156,10 @@ export const loadContent = async () => {
         return;
     }
 
+    if (!route.public && isAuthenticated) {
+        connectSocket();
+    }
+
     if (route.roles && !route.roles.includes(userRole)) {
         showAlert('No tienes permiso para acceder a esta página.', 'error');
         const defaultRoutes = {
@@ -187,6 +206,11 @@ const initializeApp = async () => {
         window.addEventListener('hashchange', loadContent);
         
         loadContent();
+
+        const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+        if (isAuthenticated) {
+            connectSocket();
+        }
 
     } catch (error) {
         console.error("Fallo crítico al inicializar los componentes de la aplicación:", error);

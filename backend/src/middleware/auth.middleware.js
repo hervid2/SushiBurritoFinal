@@ -6,6 +6,7 @@
 
 import jwt from 'jsonwebtoken';
 import db from '../models/index.js';
+import { env } from '../config/env.js';
 
 /**
  * Middleware para verificar la validez de un JSON Web Token (JWT).
@@ -27,7 +28,7 @@ export const verifyToken = (req, res, next) => {
     }
 
     // Se verifica el token usando el secreto guardado en las variables de entorno.
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    jwt.verify(token, env.accessTokenSecret, (err, decoded) => {
         // Si hay un error en la verificación (token inválido, expirado, etc.), se rechaza.
         if (err) {
             return res.status(401).send({ message: "No autorizado. Token inválido." });

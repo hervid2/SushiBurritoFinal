@@ -43,8 +43,7 @@ export const headerController = () => {
             // Se eliminan todos los datos de la sesión del almacenamiento local.
             localStorage.removeItem('isAuthenticated');// Se elimina el estado de autenticación.
             localStorage.removeItem('userRole'); // Se elimina el rol del usuario.
-            localStorage.removeItem('accessToken'); // Se corrige para usar la clave correcta.
-            localStorage.removeItem('refreshToken'); // Se añade para una limpieza completa.
+            localStorage.removeItem('accessToken'); // Se elimina el token de acceso.
             
             // Se redirige y se recarga la aplicación para un reinicio de estado limpio y seguro.
             window.location.hash = '/login'; // Redirige al usuario a la página de inicio de sesión.

@@ -7,6 +7,7 @@
 
 import { showAlert } from '../../helpers/alerts.js';
 import { api } from '../../helpers/solicitudes.js';
+import { connectSocket, getSocket } from '../../helpers/socketClient.js';
 
 /**
  * Controlador principal para la vista de Gestión de Pedidos del Mesero.
@@ -97,6 +98,30 @@ export const waiterOrdersController = () => {
             console.error(error);
             tablesGrid.innerHTML = '<div class="error-message">Error al cargar datos.</div>';
         }
+    };
+
+    /**
+     * @description Inicia los listeners de Socket.IO para refrescar la información
+     *              de mesas/pedidos cuando existan cambios en tiempo real.
+     * @returns {void}
+     */
+    const startRealtimeWaiterOrders = () => {
+        const socket = getSocket() || connectSocket();
+        if (!socket) return;
+
+        socket.off('nuevo_pedido');
+        socket.off('cambio_estado_pedido');
+        socket.off('pedido_cancelado');
+        socket.off('mesa_actualizada');
+
+        const refrescar = () => {
+            loadInitialData();
+        };
+
+        socket.on('nuevo_pedido', refrescar);
+        socket.on('cambio_estado_pedido', refrescar);
+        socket.on('pedido_cancelado', refrescar);
+        socket.on('mesa_actualizada', refrescar);
     };
 
     // --- Lógica de Renderizado ---
@@ -309,6 +334,7 @@ export const waiterOrdersController = () => {
         cancelOrderModalBtn.onclick = () => orderModal.classList.remove('is-active'); // Se agrega un evento al botón de cancelar del modal para cerrar el modal cuando se hace clic en él.
 
         loadInitialData(); // Se carga la información inicial de mesas, pedidos, ítems del menú y categorías al iniciar el controlador.
+        startRealtimeWaiterOrders();
     };
 
     init(); // Se inicializa el controlador al cargar la vista, configurando eventos y cargando datos iniciales.

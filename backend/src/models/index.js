@@ -22,6 +22,7 @@ import DetallePedidoModel from './detalle_pedido.model.js';
 import MetodoPagoModel from './metodo_pago.model.js';
 import FacturaModel from './factura.model.js';
 import TransaccionPagoModel from './transaccion_pago.model.js';
+import RefreshTokenSessionModel from './refresh_token_session.model.js';
 
 // Objeto 'db' que actuará como contenedor centralizado.
 const db = {};
@@ -43,6 +44,7 @@ db.DetallePedido = DetallePedidoModel(sequelize, Sequelize);
 db.MetodoPago = MetodoPagoModel(sequelize, Sequelize);
 db.Factura = FacturaModel(sequelize, Sequelize);
 db.TransaccionPago = TransaccionPagoModel(sequelize, Sequelize);
+db.RefreshTokenSession = RefreshTokenSessionModel(sequelize, Sequelize);
 
 
 
@@ -60,6 +62,10 @@ db.Producto.belongsTo(db.Categoria, { foreignKey: 'categoria_id' });
 // Relación Uno a Muchos: Un Usuario (mesero) puede tomar muchos Pedidos.
 db.Usuario.hasMany(db.Pedido, { foreignKey: 'usuario_id' });
 db.Pedido.belongsTo(db.Usuario, { foreignKey: 'usuario_id' });
+
+// Relación Uno a Muchos: Un Usuario puede tener múltiples sesiones de refresh token.
+db.Usuario.hasMany(db.RefreshTokenSession, { foreignKey: 'usuario_id' });
+db.RefreshTokenSession.belongsTo(db.Usuario, { foreignKey: 'usuario_id' });
 
 // Relación Uno a Muchos: Una Mesa puede tener muchos Pedidos.
 db.Mesa.hasMany(db.Pedido, { foreignKey: 'mesa_id' });
