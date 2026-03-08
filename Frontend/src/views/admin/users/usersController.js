@@ -62,7 +62,7 @@ export const usersController = () => {
             ? `<button class="btn btn--info btn--small edit-btn" data-id="${user.usuario_id}">Editar</button>
                <button class="btn btn--danger btn--small delete-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar</button>`
             : `<button class="btn btn--success btn--small restore-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Restaurar</button>
-               <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}">Eliminar Permanente</button>`;
+               <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}" data-name="${user.nombre}"> Eliminar Permanente</button>`;
 
         return `
             <tr>
@@ -150,31 +150,32 @@ if (target.classList.contains('restore-btn')) {
 }
 
 // --- LÓGICA PARA ELIMINADO PERMANENTE ---
-if (target.classList.contains('permanent-delete-btn')) {
+// --- LÓGICA PARA ELIMINADO PERMANENTE ---
+if (target.classList.contains('permanent-btn')) {
     const id = target.dataset.id;
-    const name = target.dataset.name;
+    // Si no tienes el data-name en el botón, podemos usar un mensaje genérico
+    const name = target.dataset.name || "este usuario"; 
 
     try {
-        // Llamamos a tu helper con un mensaje de advertencia real
+        // Usamos tu helper asíncrono que ya funciona
         await showConfirmModal(
-            '¡Atención: Acción Irreversible!', 
-            `¿Estás seguro de eliminar permanentemente a <strong>${name}</strong>? Esta acción no se puede deshacer.`
+            '¡Eliminación Definitiva!', 
+            `¿Estás seguro de eliminar permanentemente a <strong>${name}</strong>? Esta acción borrará los datos de la base de datos y no se puede deshacer.`
         );
 
-        // Llamada a la API para borrado físico
-        // Asumiendo que tu ruta es DELETE /usuarios/:id/permanent
-        await api.delete(`usuarios/${id}/permanent`);
+        // Llamada a tu ruta específica: /usuarios/:id/force
+        await api.delete(`usuarios/${id}/force`);
 
-        showAlert('Usuario eliminado definitivamente', 'success');
+        showAlert('Usuario eliminado de la base de datos', 'success');
         
-        // Recargamos la papelera para reflejar el cambio
+        // Recargamos la papelera (isTrashMode = true)
         loadUsers(true); 
 
     } catch (error) {
-        // Si el usuario cancela (reject de la promesa), no hacemos nada
+        // Si el usuario presiona "Cancelar", el helper hace reject y entra aquí
         if (error) {
-            console.error('Error al eliminar permanente:', error);
-            showAlert('No se pudo eliminar el registro', 'error');
+            console.error('Error al eliminar permanentemente:', error);
+            showAlert('No se pudo completar la eliminación', 'error');
         }
     }
 }
