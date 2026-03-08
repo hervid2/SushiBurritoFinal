@@ -130,19 +130,23 @@ export const restoreUser = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const [num] = await Usuario.update(
-            { is_deleted: 0, deleted_at: null },
-            { where: { usuario_id: id } }
-        );
+        // Buscamos al usuario ignorando el filtro de borrado
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
-        if (num === 0) {
-            return res.status(404).json({ message: "Usuario no encontrado." });
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
-        res.json({ message: "Usuario restaurado correctamente." });
+        // Restauramos los valores originales
+        usuario.is_deleted = 0;
+        usuario.deleted_at = null;
 
+        await usuario.save();
+
+        res.json({ message: "Usuario restaurado con éxito" });
     } catch (error) {
-        res.status(500).json({ message: "Error al restaurar usuario." });
+        console.error(error);
+        res.status(500).json({ message: "Error al restaurar el usuario" });
     }
 };
 

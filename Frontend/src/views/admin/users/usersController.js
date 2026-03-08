@@ -98,29 +98,86 @@ export const usersController = () => {
                 }
             }
 
-          // --- LÓGICA PARA ELIMINAR (DENTRO DE init) ---
+           // --- LÓGICA PARA ELIMINAR (DENTRO DE init) ---
 if (target.classList.contains('delete-btn')) {
-    // Usamos el modal de confirmación que ya tienes importado o el confirm nativo
-    if (confirm(`¿Estás seguro de que deseas enviar a ${name} a la papelera?`)) {
-        try {
-            // 🚀 Usamos el objeto 'api' que ya tienes importado arriba
-            // Esto automáticamente apuntará a la URL correcta
-            await api.delete(`usuarios/${id}`); 
+    const id = target.dataset.id;
+    const name = target.dataset.name;
 
-            showAlert('Usuario movido a la papelera', 'success');
-            loadUsers(); // Recarga la tabla de activos
-        } catch (error) {
+    try {
+        // 1. Llamamos a tu helper pasando los dos textos (Título y Mensaje)
+        // Usamos 'await' porque tu función devuelve una Promesa.
+        await showConfirmModal(
+            'Confirmar Eliminación', 
+            `¿Estás seguro de que deseas enviar a <strong>${name}</strong> a la papelera?`
+        );
+
+        // 2. Si el usuario confirma, el código sigue aquí:
+        await api.delete(`usuarios/${id}`);
+        showAlert('Usuario movido a la papelera', 'success');
+        loadUsers();
+
+    } catch (error) {
+        // 3. Si el usuario cancela, entra al catch. 
+        // Solo mostramos alerta si es un error real de la API.
+        if (error) {
             console.error('Error al eliminar:', error);
-            showAlert('No se pudo eliminar el usuario: ' + error.message, 'error');
+            showAlert('No se pudo eliminar el usuario', 'error');
         }
     }
 }
 
-            if (target.classList.contains('restore-btn')) {
-                await api.put(`usuarios/restaurar/${id}`);
-                showAlert('Restaurado', 'success');
-                loadUsers(true);
-            }
+ // --- LÓGICA PARA RESTAURAR ---
+if (target.classList.contains('restore-btn')) {
+    const id = target.dataset.id;
+    const name = target.dataset.name;
+
+    try {
+        await showConfirmModal(
+            'Restaurar Usuario', 
+            `¿Deseas restaurar a <strong>${name}</strong>?`
+        );
+
+        await api.put(`usuarios/${id}/restore`);
+        showAlert('Usuario restaurado con éxito', 'success');
+        loadUsers(true);
+
+    } catch (error) {
+        if (error) {
+            console.error('Error al restaurar:', error);
+            showAlert('No se pudo restaurar el usuario', 'error');
+        }
+    }
+}
+
+// --- LÓGICA PARA ELIMINADO PERMANENTE ---
+if (target.classList.contains('permanent-delete-btn')) {
+    const id = target.dataset.id;
+    const name = target.dataset.name;
+
+    try {
+        // Llamamos a tu helper con un mensaje de advertencia real
+        await showConfirmModal(
+            '¡Atención: Acción Irreversible!', 
+            `¿Estás seguro de eliminar permanentemente a <strong>${name}</strong>? Esta acción no se puede deshacer.`
+        );
+
+        // Llamada a la API para borrado físico
+        // Asumiendo que tu ruta es DELETE /usuarios/:id/permanent
+        await api.delete(`usuarios/${id}/permanent`);
+
+        showAlert('Usuario eliminado definitivamente', 'success');
+        
+        // Recargamos la papelera para reflejar el cambio
+        loadUsers(true); 
+
+    } catch (error) {
+        // Si el usuario cancela (reject de la promesa), no hacemos nada
+        if (error) {
+            console.error('Error al eliminar permanente:', error);
+            showAlert('No se pudo eliminar el registro', 'error');
+        }
+    }
+}
         });
 
         document.getElementById('add-user-btn').onclick = () => {
