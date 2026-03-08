@@ -1,5 +1,5 @@
 import { showAlert } from '../../../helpers/alerts.js';
-import { showConfirmModal } from '../../../helpers/modalHelper.js';
+import { showConfirmModal, showRoleSelectModal } from '../../../helpers/modalHelper.js';
 import { api } from '../../../helpers/solicitudes.js';
 
 export const usersController = () => {
@@ -182,29 +182,23 @@ if (target.classList.contains('permanent-btn')) {
 }
 // --- LÓGICA PARA EDITAR ROL (CORREGIDA) ---
 if (target.classList.contains('edit-btn')) {
-    const id = target.dataset.id;
-    const name = target.dataset.name;
-    const currentRol = target.dataset.rol;
+    const { id, name, rol } = target.dataset;
 
-    const nuevoRol = window.prompt(
-        `Cambiar rol para ${name}:\n1: Administrador\n2: Mesero\n3: Cocinero`, 
-        currentRol
-    );
+    // 1. Ocultamos el formulario del fondo para que no estorbe
+    const userFormSection = document.getElementById('user-form-section');
+    if (userFormSection) userFormSection.style.display = 'none';
 
-    // Solo disparamos si hay un cambio real y no canceló
-    if (nuevoRol !== null && nuevoRol !== currentRol) {
-        try {
+    try {
+        // 2. Lanzamos el modal con estilo
+        const nuevoRol = await showRoleSelectModal(`Cambiar rol para ${name}`, rol);
+
+        if (nuevoRol && nuevoRol !== rol) {
             await api.put(`usuarios/${id}/role`, { rol_id: parseInt(nuevoRol) });
-            
-            showAlert('Rol actualizado correctamente', 'success');
-            
-            // 🚀 Recarga limpia usando tu variable de estado
+            showAlert('Rol actualizado con éxito', 'success');
             await loadUsers(isTrashMode); 
-
-        } catch (error) {
-            console.error('Error al actualizar:', error);
-            showAlert('No se pudo actualizar el rol', 'error');
         }
+    } catch (error) {
+        console.error('Error al editar:', error);
     }
 }
 
