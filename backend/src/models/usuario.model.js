@@ -1,76 +1,59 @@
-
-
-// Se importa la librería bcryptjs para el hasheo de contraseñas.
 import bcrypt from 'bcryptjs';
 
 export default (sequelize, DataTypes) => {
     const Usuario = sequelize.define('Usuario', {
-
         usuario_id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true
         },
-
         nombre: {
             type: DataTypes.STRING(100),
             allowNull: false
         },
-
         rol_id: {
             type: DataTypes.INTEGER,
             allowNull: false
         },
-
         correo: {
             type: DataTypes.STRING(100),
             allowNull: false,
             unique: true,
-            validate: {
-                isEmail: true
-            }
+            validate: { isEmail: true }
         },
-
         contraseña: {
             type: DataTypes.STRING(255),
             allowNull: false
         },
-
-        // 🔥 Campo para forzar cambio de contraseña en primer login
         must_change_password: {
             type: DataTypes.BOOLEAN,
             allowNull: false,
             defaultValue: true
         },
-
+        // 🔥 AGREGAMOS ESTE CAMPO (Faltaba en tu código)
+        is_deleted: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0
+        },
         deleted_at: {
             type: DataTypes.DATE,
             allowNull: true
         }
-
+    // ... (resto del código igual hasta las opciones del modelo)
     }, {
         tableName: 'usuarios',
         timestamps: true,
         paranoid: true,
-        deletedAt: 'deleted_at',
-
+        
+        // 🔥 MAPEO CORRECTO DE COLUMNAS:
+        // 'Nombre en Sequelize': 'Nombre real en MySQL'
+        createdAt: 'createdAt',  // Cambiado de 'created_at' a 'createdAt'
+        updatedAt: 'updatedAt',  // Asegúrate de que coincida con tu tabla
+        deletedAt: 'deleted_at', // Este parece estar bien según tus capturas
+        
         hooks: {
-
-            // 🔐 Encripta automáticamente al crear
-            beforeCreate: async (usuario) => {
-                if (usuario.contraseña) {
-                    const salt = await bcrypt.genSalt(10);
-                    usuario.contraseña = await bcrypt.hash(usuario.contraseña, salt);
-                }
-            },
-
-            // 🔐 Encripta solo si la contraseña cambió
-            beforeUpdate: async (usuario) => {
-                if (usuario.changed('contraseña')) {
-                    const salt = await bcrypt.genSalt(10);
-                    usuario.contraseña = await bcrypt.hash(usuario.contraseña, salt);
-                }
-            }
+            // ... (tus hooks de bcrypt)
         }
     });
 

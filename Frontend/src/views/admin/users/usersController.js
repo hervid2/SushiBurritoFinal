@@ -36,26 +36,44 @@ export const usersController = () => {
     };
 
     const renderTable = (users) => {
-        tableBody.innerHTML = users.length === 0 
-            ? `<tr><td colspan="5" class="text-center">No hay registros.</td></tr>`
-            : users.map(user => `
-                <tr>
-                    <td>${user.usuario_id}</td>
-                    <td>${user.nombre}</td>
-                    <td>${user.correo}</td>
-                    <td><span class="role-badge">${user.rol || '---'}</span></td>
-                    <td class="table-actions">
-                        ${!isTrashMode ? `
-                            <button class="btn btn--info btn--small edit-btn" data-id="${user.usuario_id}">Editar</button>
-                            <button class="btn btn--danger btn--small delete-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar</button>
-                        ` : `
-                            <button class="btn btn--success btn--small restore-btn" data-id="${user.usuario_id}">Restaurar</button>
-                            <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}">Permanente</button>
-                        `}
-                    </td>
-                </tr>
-            `).join('');
-    };
+    const tableBody = document.querySelector('#users-table tbody');
+    tableBody.innerHTML = '';
+
+    if (!users || users.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No hay registros.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = users.map(user => {
+        // 1. DETERMINAR COLOR POR ROL
+        let roleClass = 'role-default';
+        const rolNombre = (user.rol || '').toLowerCase();
+
+        if (rolNombre.includes('admin')) {
+            roleClass = 'role-admin';
+        } else if (rolNombre.includes('mesero')) {
+            roleClass = 'role-mesero';
+        } else if (rolNombre.includes('cocinero')) {
+            roleClass = 'role-cocinero';
+        }
+
+        // 2. DETERMINAR BOTONES (Activos vs Papelera)
+        const actionButtons = !isTrashMode 
+            ? `<button class="btn btn--info btn--small edit-btn" data-id="${user.usuario_id}">Editar</button>
+               <button class="btn btn--danger btn--small delete-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar</button>`
+            : `<button class="btn btn--success btn--small restore-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Restaurar</button>
+               <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}">Eliminar Permanente</button>`;
+
+        return `
+            <tr>
+                <td>${user.usuario_id}</td>
+                <td>${user.nombre}</td>
+                <td>${user.correo}</td>
+                <td><span class="role-badge ${roleClass}">${user.rol || 'Sin Rol'}</span></td>
+                <td class="table-actions">${actionButtons}</td>
+            </tr>`;
+    }).join('');
+};
 
     // --- LÓGICA DE EVENTOS ---
     const init = () => {
