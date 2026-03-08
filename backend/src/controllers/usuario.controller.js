@@ -157,17 +157,20 @@ export const deleteUserPermanent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deletedRows = await Usuario.destroy({
-            where: { usuario_id: id },
-            force: true // Borrado real de la base de datos
-        });
+        // Buscamos al usuario incluyendo los que ya están en la papelera
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
-        res.json({
-            message: deletedRows === 1 ? "Eliminado definitivamente." : "No encontrado."
-        });
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
 
+        // 🚀 FORCE: TRUE es la clave aquí para el borrado físico
+        await usuario.destroy({ force: true });
+
+        res.json({ message: "Usuario eliminado permanentemente de la base de datos" });
     } catch (error) {
-        res.status(500).json({ message: "Error al eliminar definitivamente." });
+        console.error(error);
+        res.status(500).json({ message: "Error al eliminar definitivamente" });
     }
 };
 
