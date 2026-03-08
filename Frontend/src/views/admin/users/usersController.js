@@ -98,12 +98,23 @@ export const usersController = () => {
                 }
             }
 
-            if (target.classList.contains('delete-btn')) {
-                if (await showConfirmModal('Eliminar', `¿Enviar a ${name} a la papelera?`)) {
-                    await api.delete(`usuarios/${id}`);
-                    loadUsers(false);
-                }
-            }
+          // --- LÓGICA PARA ELIMINAR (DENTRO DE init) ---
+if (target.classList.contains('delete-btn')) {
+    // Usamos el modal de confirmación que ya tienes importado o el confirm nativo
+    if (confirm(`¿Estás seguro de que deseas enviar a ${name} a la papelera?`)) {
+        try {
+            // 🚀 Usamos el objeto 'api' que ya tienes importado arriba
+            // Esto automáticamente apuntará a la URL correcta
+            await api.delete(`usuarios/${id}`); 
+
+            showAlert('Usuario movido a la papelera', 'success');
+            loadUsers(); // Recarga la tabla de activos
+        } catch (error) {
+            console.error('Error al eliminar:', error);
+            showAlert('No se pudo eliminar el usuario: ' + error.message, 'error');
+        }
+    }
+}
 
             if (target.classList.contains('restore-btn')) {
                 await api.put(`usuarios/restaurar/${id}`);

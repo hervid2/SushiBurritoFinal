@@ -95,39 +95,32 @@ export const getAllUsers = async (req, res) => {
 /* =====================================================
    SOFT DELETE (Mover a papelera)
 ===================================================== */
-
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // 1. Usamos una actualización directa para asegurar que el 1 se guarde
-        // Agregamos paranoid: false para encontrar al usuario sin importar su estado
-        const [num] = await Usuario.update(
-            { 
-                is_deleted: 1, 
-                deleted_at: new Date() 
-            },
-            { 
-                where: { usuario_id: id },
-                paranoid: false 
-            }
-        );
+        // Buscamos al usuario (incluso si Sequelize lo ocultaba por tener fecha en deleted_at)
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
-        if (num === 1) {
-            // 2. Verificamos el estado real después del update para confirmar
-            const verificado = await Usuario.findByPk(id, { paranoid: false });
-            
-            res.json({
-                message: "Usuario enviado a la papelera.",
-                is_deleted: verificado.is_deleted // Esto debe devolver 1 ahora
-            });
-        } else {
-            res.status(404).json({ message: "Usuario no encontrado." });
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
         }
 
+        // Forzamos el cambio de estado y la fecha de eliminación
+        usuario.is_deleted = 1;
+        usuario.deleted_at = new Date();
+
+        // Guardamos los cambios físicamente en la base de datos
+        await usuario.save();
+
+        res.json({ 
+            message: "Usuario enviado a la papelera.",
+            id_eliminado: id 
+        });
+
     } catch (error) {
-        console.error("Error al borrar:", error);
-        res.status(500).json({ message: "Error al eliminar usuario." });
+        console.error("Error al eliminar:", error);
+        res.status(500).json({ message: "Error al procesar la eliminación." });
     }
 };
 /* =====================================================
