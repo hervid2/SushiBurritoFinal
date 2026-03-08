@@ -67,14 +67,13 @@ export const getDeletedUsers = async (req, res) => {
         res.status(500).json({ message: "Error al cargar la papelera" });
     }
 };
-
 /* =====================================================
-   LISTAR USUARIOS ACTIVOS
+   LISTAR USUARIOS ACTIVOS (CORREGIDO)
 ===================================================== */
 export const getAllUsers = async (req, res) => {
     try {
         const usuarios = await Usuario.findAll({
-            where: { is_deleted: 0 }, // Solo los que no están borrados
+            where: { is_deleted: 0 },
             attributes: { exclude: ['contraseña'] },
             include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
         });
@@ -83,6 +82,7 @@ export const getAllUsers = async (req, res) => {
             usuario_id: u.usuario_id,
             nombre: u.nombre,
             correo: u.correo,
+            rol_id: u.rol_id, // 🚀 AGREGAMOS ESTO PARA EL FRONTEND
             rol: u.Rol ? u.Rol.nombre_rol : 'Sin Rol'
         }));
 
@@ -173,6 +173,37 @@ export const deleteUserPermanent = async (req, res) => {
         res.status(500).json({ message: "Error al eliminar definitivamente" });
     }
 };
+
+
+// --- FUNCIÓN PARA ACTUALIZAR SOLO EL ROL ---
+// Añade esta función al final de tu controlador
+export const updateUsuarioRol = async (req, res) => {
+    try {
+        const { id } = req.params; // El ID del usuario
+        const { rol_id } = req.body; // El nuevo ID del rol (1, 2 o 3)
+
+        // 1. Buscamos al usuario
+        const usuario = await Usuario.findByPk(id);
+
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // 2. Actualizamos solo el campo necesario
+        usuario.rol_id = rol_id;
+        await usuario.save();
+
+        // 3. Respondemos al frontend
+        res.json({ 
+            success: true, 
+            message: "Rol actualizado correctamente" 
+        });
+    } catch (error) {
+        console.error('Error al actualizar rol:', error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+
 
 /* =====================================================
    CAMBIAR CONTRASEÑA, ACTUALIZAR Y GET BY ID (SIN CAMBIOS)

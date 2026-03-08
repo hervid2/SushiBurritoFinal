@@ -26,8 +26,7 @@ router.delete('/:id/force', [verifyToken, isAdmin], usuarioController.deleteUser
    CREACIÓN DE USUARIO (GENERA CONTRASEÑA TEMPORAL)
 ===================================================== */
 
-router.post(
-  '/',
+router.post('/',
   verifyToken,   // si quieres protegerlo solo para admin
   usuarioController.createUser
 );
@@ -58,6 +57,8 @@ router.get('/:id', [verifyToken, isAdmin], usuarioController.getUserById);
 router.put('/:id', [verifyToken, isAdmin], usuarioController.updateUser);
 
 router.delete('/:id', [verifyToken, isAdmin], usuarioController.deleteUser);
+
+router.put('/:id/role', [verifyToken, isAdmin], usuarioController.updateUsuarioRol);
 
 
 export default router;

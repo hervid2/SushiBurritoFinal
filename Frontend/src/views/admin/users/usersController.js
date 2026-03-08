@@ -58,11 +58,12 @@ export const usersController = () => {
         }
 
         // 2. DETERMINAR BOTONES (Activos vs Papelera)
-        const actionButtons = !isTrashMode 
-            ? `<button class="btn btn--info btn--small edit-btn" data-id="${user.usuario_id}">Editar</button>
-               <button class="btn btn--danger btn--small delete-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar</button>`
-            : `<button class="btn btn--success btn--small restore-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Restaurar</button>
-               <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}" data-name="${user.nombre}"> Eliminar Permanente</button>`;
+       // Dentro de tu renderTable, verifica que data-rol sea user.rol_id
+const actionButtons = !isTrashMode 
+    ? `<button class="btn btn--info btn--small edit-btn" data-id="${user.usuario_id}" data-name="${user.nombre}" data-rol="${user.rol_id}">Editar</button>
+                 <button class="btn btn--danger btn--small delete-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar</button>`
+    : `<button class="btn btn--success btn--small restore-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Restaurar</button>
+       <button class="btn btn--danger btn--small permanent-btn" data-id="${user.usuario_id}" data-name="${user.nombre}">Eliminar Permanente</button>`;
 
         return `
             <tr>
@@ -150,7 +151,7 @@ if (target.classList.contains('restore-btn')) {
 }
 
 // --- LÓGICA PARA ELIMINADO PERMANENTE ---
-// --- LÓGICA PARA ELIMINADO PERMANENTE ---
+
 if (target.classList.contains('permanent-btn')) {
     const id = target.dataset.id;
     // Si no tienes el data-name en el botón, podemos usar un mensaje genérico
@@ -179,6 +180,34 @@ if (target.classList.contains('permanent-btn')) {
         }
     }
 }
+// --- LÓGICA PARA EDITAR ROL (CORREGIDA) ---
+if (target.classList.contains('edit-btn')) {
+    const id = target.dataset.id;
+    const name = target.dataset.name;
+    const currentRol = target.dataset.rol;
+
+    const nuevoRol = window.prompt(
+        `Cambiar rol para ${name}:\n1: Administrador\n2: Mesero\n3: Cocinero`, 
+        currentRol
+    );
+
+    // Solo disparamos si hay un cambio real y no canceló
+    if (nuevoRol !== null && nuevoRol !== currentRol) {
+        try {
+            await api.put(`usuarios/${id}/role`, { rol_id: parseInt(nuevoRol) });
+            
+            showAlert('Rol actualizado correctamente', 'success');
+            
+            // 🚀 Recarga limpia usando tu variable de estado
+            await loadUsers(isTrashMode); 
+
+        } catch (error) {
+            console.error('Error al actualizar:', error);
+            showAlert('No se pudo actualizar el rol', 'error');
+        }
+    }
+}
+
         });
 
         document.getElementById('add-user-btn').onclick = () => {
