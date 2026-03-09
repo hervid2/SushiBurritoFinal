@@ -8,6 +8,9 @@ import { validateUserCreation } from '../middleware/validation.middleware.js';
 
 const router = Router();
 
+
+router.post('/change-password', usuarioController.changePassword);
+
 /* =====================================================
    RUTAS ADMIN ESPECIALES
 ===================================================== */

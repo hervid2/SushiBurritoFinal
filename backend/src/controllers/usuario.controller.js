@@ -4,6 +4,7 @@
 
 import db from '../models/index.js';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs'; //
 import { sendTemporaryPasswordEmail } from '../helpers/email.js';
 
 const Usuario = db.Usuario;
@@ -16,31 +17,29 @@ export const createUser = async (req, res) => {
         const { nombre, correo, rol_id } = req.body;
 
         const usuarioExistente = await Usuario.findOne({ where: { correo } });
+        if (usuarioExistente) return res.status(400).json({ message: "El usuario ya existe." });
 
-        if (usuarioExistente) {
-            return res.status(400).json({ message: "El usuario ya existe." });
-        }
+        // Generamos la clave legible para el email
+        const contraseñaPlana = crypto.randomBytes(3).toString('hex');
+        console.log("🔐 CLAVE TEMPORAL GENERADA:", contraseñaPlana);
 
-        const contraseñaTemporal = crypto.randomBytes(6).toString('hex');
-        console.log("🔐 CONTRASEÑA TEMPORAL:", contraseñaTemporal);
+        // 🚀 ENCRIPTAMOS para que el Login no dé Error 401
+        const salt = await bcrypt.genSalt(10);
+        const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
 
         await Usuario.create({
             nombre,
             correo,
-            rol_id: parseInt(rol_id), // Forzamos entero para evitar el error de "siempre mesero"
-            contraseña: contraseñaTemporal,
+            rol_id: parseInt(rol_id),
+            contraseña: contraseñaHasheada, // Guardamos la encriptada
             must_change_password: true,
-            is_deleted: 0 // Usuario nuevo empieza activo
+            is_deleted: 0
         });
 
-        try {
-            await sendTemporaryPasswordEmail(correo, contraseñaTemporal);
-        } catch (emailError) {
-            console.error("⚠️ Error enviando correo:", emailError);
-        }
+        // Enviamos la PLANA al correo
+        await sendTemporaryPasswordEmail(correo, contraseñaPlana);
 
-        res.status(201).json({ message: "Usuario creado y contraseña temporal enviada." });
-
+        res.status(201).json({ message: "Usuario creado. Revisa el correo." });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error al crear usuario." });
@@ -235,14 +234,22 @@ export const updateUser = async (req, res) => {
 
 export const changePassword = async (req, res) => {
     try {
-        const usuario_id = req.userId;
-        const { nuevaContraseña } = req.body;
-        if (!nuevaContraseña || nuevaContraseña.length < 8) return res.status(400).json({ message: "Mínimo 8 caracteres." });
+        const { usuario_id, nuevaContraseña } = req.body;
+
+        if (!nuevaContraseña || nuevaContraseña.length < 8) {
+            return res.status(400).json({ message: "Mínimo 8 caracteres." });
+        }
+
         const usuario = await Usuario.findByPk(usuario_id);
-        if (!usuario) return res.status(404).json({ message: "No encontrado." });
-        usuario.contraseña = nuevaContraseña;
-        usuario.must_change_password = false;
+        if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+        const salt = await bcrypt.genSalt(10);
+        usuario.contraseña = await bcrypt.hash(nuevaContraseña, salt);
+        usuario.must_change_password = false; // Ya no es temporal
+        
         await usuario.save();
-        res.json({ message: "Contraseña actualizada." });
-    } catch (error) { res.status(500).json({ message: "Error." }); }
+        res.json({ message: "Contraseña actualizada con éxito." });
+    } catch (error) {
+        res.status(500).json({ message: "Error al procesar el cambio." });
+    }
 };
