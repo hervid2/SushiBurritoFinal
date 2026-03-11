@@ -1,11 +1,7 @@
-
-
-// Se importa la librería bcryptjs para el hasheo de contraseñas.
 import bcrypt from 'bcryptjs';
 
 export default (sequelize, DataTypes) => {
     const Usuario = sequelize.define('Usuario', {
-
         usuario_id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
@@ -23,44 +19,43 @@ export default (sequelize, DataTypes) => {
             type: DataTypes.STRING(100),
             allowNull: false,
             unique: true,
-            validate: {
-                isEmail: true
-            }
+            validate: { isEmail: true }
         },
         contraseña: {
             type: DataTypes.STRING(255),
             allowNull: false
         },
-
-        // IMPORTANTE: agregar esta columna
+        must_change_password: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
+        },
+       
+        is_deleted: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0
+        },
         deleted_at: {
             type: DataTypes.DATE,
             allowNull: true
         }
-
+    
     }, {
         tableName: 'usuarios',
-
-        //  ACTIVA timestamps porque paranoid los necesita
         timestamps: true,
-
-        // ACTIVA soft delete
         paranoid: true,
-
-        // Usa tu nombre personalizado
-        deletedAt: 'deleted_at',
-
+        
+        // 🔥 MAPEO CORRECTO DE COLUMNAS:
+        // 'Nombre en Sequelize': 'Nombre real en MySQL'
+        createdAt: 'createdAt',  // Cambiado de 'created_at' a 'createdAt'
+        updatedAt: 'updatedAt',  // Asegúrate de que coincida con tu tabla
+        deletedAt: 'deleted_at', // Este parece estar bien según tus capturas
+        
         hooks: {
-            beforeCreate: async (usuario) => {
-                if (usuario.contraseña) {
-                    const salt = await bcrypt.genSalt(10);
-                    usuario.contraseña = await bcrypt.hash(usuario.contraseña, salt);
-                }
-            }
+            // ... (tus hooks de bcrypt)
         }
     });
 
     return Usuario;
 };
-
-

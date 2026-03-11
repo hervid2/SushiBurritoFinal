@@ -4,7 +4,6 @@
 //      con la autenticación, incluyendo inicio de sesión,
 //      gestión de tokens y recuperación de contraseñas.
 // =================================================================
-
 import db from '../models/index.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -77,26 +76,30 @@ const clearRefreshCookie = (res) => {
     });
 };
 
-// --- INICIO DE SESIÓN ---
-/**
- * Procesa la solicitud de inicio de sesión de un usuario.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+const Usuario = db.Usuario;
+
+/* =====================================================
+    LOGIN
+===================================================== */
 export const login = async (req, res) => {
     try {
         const { correo, contraseña } = req.body;
-        // Busca al usuario por su correo e incluye la información de su rol.
-        const usuario = await db.Usuario.findOne({
-            where: { correo: correo },
+
+        const usuario = await Usuario.findOne({
+            where: { correo },
             include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
         });
 
-        if (!usuario) return res.status(404).send({ message: "Usuario no encontrado." });
+        if (!usuario) {
+            return res.status(404).json({
+                message: "Usuario no encontrado."
+            });
+        }
 
-        // Compara de forma segura la contraseña proporcionada con el hash almacenado.
-        const passwordIsValid = bcrypt.compareSync(contraseña, usuario.contraseña);
-        if (!passwordIsValid) return res.status(401).send({ message: "Contraseña inválida." });
+        const passwordIsValid = await bcrypt.compare(
+            contraseña,
+            usuario.contraseña
+        );
 
         // Se genera un token de acceso y un refresh token rotativo asociado a sesión.
         const accessToken = createAccessToken(usuario.usuario_id);
@@ -123,6 +126,7 @@ export const login = async (req, res) => {
             rol: usuario.Rol.nombre_rol, 
             accessToken
         });
+
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
@@ -248,14 +252,17 @@ export const forgotPassword = async (req, res) => {
     const { correo } = req.body;
 
     try {
-        const usuario = await db.Usuario.findOne({ where: { correo } });
-        if (!usuario) {
-            // Medida de seguridad: Se envía una respuesta genérica para no revelar si un correo existe o no.
-            return res.status(200).send({ message: "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña." });
+        const { usuario_id, nuevaContraseña } = req.body;
+
+        if (!usuario_id || !nuevaContraseña) {
+            return res.status(400).json({ 
+                message: "ID de usuario y nueva contraseña son requeridos." 
+            });
         }
 
-        // Se crea un token de restablecimiento de corta duración.
-        const resetToken = jwt.sign({ id: usuario.usuario_id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+        // 1. Encriptar la nueva contraseña aquí
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(nuevaContraseña, salt);
 
         // Se construye el enlace que apunta a la vista del frontend.
         const resetLink = `${env.resetPasswordUrl}?token=${resetToken}`;
@@ -296,49 +303,50 @@ export const resetPassword = async (req, res) => {
             { where: { usuario_id: decoded.id } }
         );
 
-        if (updated[0] === 0) {
-            return res.status(404).send({ message: "Usuario no encontrado o token inválido." });
+        if (rowsUpdated === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado o no hubo cambios." });
         }
 
-        res.status(200).send({ message: "Contraseña actualizada exitosamente." });
+        res.status(200).json({ 
+            message: "Contraseña actualizada exitosamente. Por favor, inicie sesión." 
+        });
 
     } catch (error) {
-        // Se manejan errores específicos de JWT para dar feedback claro al usuario.
-        if (error instanceof jwt.TokenExpiredError) {
-            return res.status(401).send({ message: "El token ha expirado. Por favor, solicita un nuevo enlace." });
-        }
-        if (error instanceof jwt.JsonWebTokenError) {
-            return res.status(401).send({ message: "Token inválido." });
-        }
-        res.status(500).send({ message: "Error al restablecer la contraseña." });
+        console.error("Error al cambiar contraseña:", error);
+        res.status(500).json({ message: "Error interno al procesar el cambio de contraseña." });
     }
 };
 
-// --- FUNCIÓN AUXILIAR PARA ENVIAR CORREO ---
-/**
- * Función no exportada que configura y envía el correo de restablecimiento.
- * @param {string} recipientEmail - La dirección de correo del destinatario.
- * @param {string} resetLink - El enlace completo para restablecer la contraseña.
- */
-async function sendPasswordResetEmail(recipientEmail, resetLink) {
-    const transporter = nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE,
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-        }
-    });
+/* =====================================================
+    REFRESH TOKEN
+===================================================== */
+export const refreshToken = async (req, res) => {
+    const { refreshToken } = req.body;
 
-    await transporter.sendMail({
-        from: `"Soporte Sushi Burrito" <${process.env.EMAIL_USER}>`,
-        to: recipientEmail,
-        subject: 'Restablece tu Contraseña',
-        html: `
-            <p>Hola,</p>
-            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:</p>
-            <p><a href="${resetLink}">Restablecer mi contraseña</a></p>
-            <p>Si no solicitaste esto, por favor ignora este correo.</p>
-            <p>Este enlace es válido por 15 minutos.</p>
-        `
-    });
-}
+    if (!refreshToken) {
+        return res.status(401).json({
+            message: "Refresh Token requerido."
+        });
+    }
+
+    try {
+        const decoded = jwt.verify(
+            refreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+        );
+
+        const newAccessToken = jwt.sign(
+            { id: decoded.id },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        res.status(200).json({
+            accessToken: newAccessToken
+        });
+
+    } catch (error) {
+        console.error("🔥 ERROR REFRESH TOKEN:", error.message);
+        res.status(500).json({ message: "Sesión expirada o token inválido." });
+    }
+};

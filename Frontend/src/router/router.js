@@ -3,8 +3,10 @@
 // ROL: Cerebro de la Single Page Application (SPA). Gestiona qué
 //      vista y qué lógica cargar en función de la URL del navegador.
 // =================================================================
+// 1. Importar el nuevo controlador (Asegúrate de que la ruta sea correcta)
+import { changePasswordController } from "../views/auth/changePasswordController.js";
 
-// Importaciones de todos los controladores de las vistas.
+// Importaciones existentes...
 import { loginController } from "../views/auth/loginController.js";
 import { forgotPasswordController } from "../views/auth/forgotPasswordController.js";
 import { resetPasswordController } from "../views/auth/resetPasswordController.js";
@@ -16,8 +18,6 @@ import { kitchenOrdersController } from "../views/kitchen/kitchenOrdersControlle
 import { waiterOrdersController } from "../views/waiter/waiterOrdersController.js";
 import { waiterInvoiceGeneratorController } from "../views/waiter/waiterInvoiceGeneratorController.js";
 import { waiterOrdersStatusController } from "../views/waiter/waiterOrdersStatusController.js";
-
-// Importación de controladores y helpers compartidos.
 import { navigationController } from "../views/shared/navigationController.js";
 import { showAlert } from '../helpers/alerts.js';
 import { loadView } from '../helpers/loadview.js'; 
@@ -33,40 +33,29 @@ export const routes = {
     "forgot-password": { template: "auth/forgot-password.html", controller: forgotPasswordController, title: "Recuperar Contraseña", public: true },
     "reset-password": { template: "auth/reset-password.html", controller: resetPasswordController, title: "Restablecer Contraseña", public: true },
     
-    // Rutas de Administrador (protegidas por rol)
+    // 2. REGISTRAR NUEVA RUTA DE CAMBIO DE CONTRASEÑA
+    "change-password": { template: "auth/change-password.html", controller: changePasswordController, title: "Cambiar Contraseña", public: true },
+    
+    // Rutas de Administrador...
     "admin/dashboard": { template: "admin/dashboard/dashboard.html", controller: dashboardController, title: "Panel administrativo", roles: ['administrador'] },
     "admin/users": { template: "admin/users/usersManagement.html", controller: usersController, title: "Gestión de Usuarios", roles: ['administrador'] },
     "admin/menu": { template: "admin/menu/menuManagement.html", controller: menuController, title: "Gestión de Menú y mesas", roles: ['administrador'] },
     "admin/stats": { template: "admin/stats/statsOverview.html", controller: statsController, title: "Estadísticas", roles: ['administrador'] },
     
-    // Rutas de Cocina (protegidas y por estado)
+    // Resto de rutas (Kitchen, Waiter, 404)...
     "kitchen/orders/pending": { template: "kitchen/kitchenOrders.html", controller: kitchenOrdersController, title: "Pedidos Pendientes", roles: ['cocinero'], status: 'pendiente' },
     "kitchen/orders/preparing": { template: "kitchen/kitchenOrders.html", controller: kitchenOrdersController, title: "Pedidos en Preparación", roles: ['cocinero'], status: 'en_preparacion' },
     "kitchen/orders/ready": { template: "kitchen/kitchenOrders.html", controller: kitchenOrdersController, title: "Pedidos Listos", roles: ['cocinero'], status: 'preparado' },
-    
-    // Rutas de Mesero (protegidas)
     "waiter/orders": { template: "waiter/waiterOrdersManagement.html", controller: waiterOrdersController, title: "Gestión de Pedidos", roles: ['mesero'] },
     "waiter/orders-status": { template: "waiter/waiterOrdersStatus.html", controller: waiterOrdersStatusController, title: "Estado de Pedidos", roles: ['mesero'] },
     "waiter/invoice": { template: "waiter/waiterInvoiceGenerator.html", controller: waiterInvoiceGeneratorController, title: "Generación de Factura", roles: ['mesero'] },
-    
-    // Ruta de Error 404 (pública)
     "404": { template: "shared/404.html", title: "Página No Encontrada", public: true }
 };
 
-/**
- * @description Cambia la ruta actual de la aplicación actualizando el hash de la URL.
- * @param {string} path - La ruta a la que se desea navegar.
- */
 export const navigateTo = (path) => {
     window.location.hash = path;
 };
 
-/**
- * @description Actualiza los componentes de UI compartidos (header, nav) según el estado de autenticación y la ruta actual.
- * @param {boolean} isAuthenticated - Si el usuario ha iniciado sesión.
- * @param {string} userRole - El rol del usuario actual.
- * @param {object} route - El objeto de la ruta actual desde el mapa `routes`.
- */
 const updateSharedUI = (isAuthenticated, userRole, route) => {
     const headerContainer = document.getElementById('header-container');
     const navContainer = document.getElementById('navigation-container');
@@ -80,9 +69,7 @@ const updateSharedUI = (isAuthenticated, userRole, route) => {
 
     if (!isPublicView && isAuthenticated) {
         const appTitleElement = document.getElementById('app-title');
-        if (appTitleElement) {
-            appTitleElement.textContent = route.title || 'Sushi Burrito';
-        }
+        if (appTitleElement) appTitleElement.textContent = route.title || 'Sushi Burrito';
 
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) {
@@ -109,14 +96,10 @@ const updateSharedUI = (isAuthenticated, userRole, route) => {
                 navigateTo('/login'); 
             });
         }
-
         navigationController({ role: userRole });
     }
 };
 
-/**
- * @description Función principal que se ejecuta en cada carga o cambio de URL.
- */
 export const loadContent = async () => {
     const fullHash = (window.location.hash.substring(1) || "/").startsWith('/')
         ? window.location.hash.substring(2)
@@ -129,13 +112,21 @@ export const loadContent = async () => {
 
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     const userRole = localStorage.getItem('userRole');
+    const tempUserId = localStorage.getItem('temp_usuario_id'); // ID temporal del login
 
-    if (path === "" || path === "/") {
-        navigateTo(isAuthenticated ? 'admin/dashboard' : 'login');
+    // 3. REGLA DE PROTECCIÓN: Si tiene ID temporal, FORZAR cambio de contraseña
+    if (tempUserId && path !== 'change-password') {
+        navigateTo('change-password');
         return;
     }
-    if (path === "kitchen/orders") {
-        navigateTo('kitchen/orders/pending');
+
+    if (path === "" || path === "/") {
+        const defaultRoutes = {
+            administrador: 'admin/dashboard',
+            mesero: 'waiter/orders',
+            cocinero: 'kitchen/orders/pending'
+        };
+        navigateTo(isAuthenticated ? (defaultRoutes[userRole] || 'login') : 'login');
         return;
     }
 
@@ -146,8 +137,13 @@ export const loadContent = async () => {
         return;
     }
     
-    if (route.public && isAuthenticated && path !== 'reset-password') {
-        navigateTo('admin/dashboard');
+    if (route.public && isAuthenticated && path !== 'reset-password' && path !== 'change-password') {
+        const defaultRoutes = {
+            administrador: 'admin/dashboard',
+            mesero: 'waiter/orders',
+            cocinero: 'kitchen/orders/pending'
+        };
+        navigateTo(defaultRoutes[userRole] || '404');
         return;
     }
 
@@ -173,8 +169,6 @@ export const loadContent = async () => {
 
     try {
         const appContainer = document.getElementById('app');
-        
-        // Se utiliza el helper 'loadView' para cargar el HTML
         await loadView(`/src/views/${route.template}`, appContainer);
 
         document.title = route.title;
@@ -190,9 +184,6 @@ export const loadContent = async () => {
     }
 };
 
-/**
- * @description Punto de entrada de la aplicación.
- */
 const initializeApp = async () => {
     const headerContainer = document.getElementById('header-container');
     const navContainer = document.getElementById('navigation-container');
@@ -204,7 +195,6 @@ const initializeApp = async () => {
         footerContainer.innerHTML = await (await fetch('/src/views/shared/footer.html')).text();
 
         window.addEventListener('hashchange', loadContent);
-        
         loadContent();
 
         const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -213,10 +203,9 @@ const initializeApp = async () => {
         }
 
     } catch (error) {
-        console.error("Fallo crítico al inicializar los componentes de la aplicación:", error);
-        document.body.innerHTML = "Error crítico al cargar la aplicación. Por favor, intente de nuevo más tarde.";
+        console.error("Fallo crítico:", error);
+        document.body.innerHTML = "Error crítico al cargar la aplicación.";
     }
 };
 
-// Inicia la aplicación.
 initializeApp();

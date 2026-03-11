@@ -1,250 +1,255 @@
 // =================================================================
 // ARCHIVO: src/controllers/usuario.controller.js
-// ROL: Controlador que maneja la lógica de negocio para las
-//      operaciones CRUD de la entidad 'Usuario'.
 // =================================================================
 
 import db from '../models/index.js';
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs'; //
+import { sendTemporaryPasswordEmail } from '../helpers/email.js';
 
 const Usuario = db.Usuario;
 
-/**
- * Crea un nuevo usuario en la base de datos.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+/* =====================================================
+   CREAR USUARIO CON CONTRASEÑA TEMPORAL
+===================================================== */
 export const createUser = async (req, res) => {
     try {
-        const { nombre, rol, correo, contraseña } = req.body;
+        const { nombre, correo, rol_id } = req.body;
 
-        const rolEncontrado = await db.Rol.findOne({
-            where: { nombre_rol: rol }
-        });
+        const usuarioExistente = await Usuario.findOne({ where: { correo } });
+        if (usuarioExistente) return res.status(400).json({ message: "El usuario ya existe." });
 
-        if (!rolEncontrado) {
-            return res.status(400).json({
-                message: "El rol especificado no existe."
-            });
-        }
+        // Generamos la clave legible para el email
+        const contraseñaPlana = crypto.randomBytes(3).toString('hex');
+        // console.log("🔐 CLAVE TEMPORAL GENERADA:", contraseñaPlana);
 
-        // Verificar si el correo ya existe (incluyendo eliminados)
-        const usuarioExistente = await Usuario.findOne({
-            where: { correo },
-            paranoid: false
-        });
-
-        if (usuarioExistente) {
-            return res.status(400).json({
-                message: "Usuario existente"
-            });
-        }
+        // 🚀 ENCRIPTAMOS para que el Login no dé Error 401
+        const salt = await bcrypt.genSalt(10);
+        // const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
 
         await Usuario.create({
             nombre,
             correo,
-            contraseña,
-            rol_id: rolEncontrado.rol_id
+            rol_id: parseInt(rol_id),
+            contraseña: contraseñaHasheada, // Guardamos la encriptada
+            must_change_password: true,
+            is_deleted: 0
         });
 
-        res.status(201).json({
-            message: "Usuario creado exitosamente."
-        });
+        // Enviamos la PLANA al correo
+        await sendTemporaryPasswordEmail(correo, contraseñaPlana);
 
+        res.status(201).json({ message: "Usuario creado. Revisa el correo." });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: "Error al crear usuario." });
     }
 };
 
+/* =====================================================
+   USUARIOS ELIMINADOS (PAPELERA)
+===================================================== */
 export const getDeletedUsers = async (req, res) => {
     try {
         const usuarios = await Usuario.findAll({
-            paranoid: false,
-            where: {
-                deleted_at: { [db.Sequelize.Op.not]: null }
-            }
+            // 🔥 CLAVE: Permite ver registros con fecha en deleted_at
+            paranoid: false, 
+            where: { is_deleted: 1 },
+            include: [{
+                model: db.Rol,
+                attributes: ['nombre_rol']
+            }]
         });
 
         res.json(usuarios);
-
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: "Error al cargar la papelera" });
     }
 };
-
-
-
-/**
- * Obtiene una lista de todos los usuarios, incluyendo el nombre de su rol.
- * Excluye datos sensibles como la contraseña de la respuesta.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
+/* =====================================================
+   LISTAR USUARIOS ACTIVOS (CORREGIDO)
+===================================================== */
 export const getAllUsers = async (req, res) => {
     try {
-        const usuarios = await db.Usuario.findAll({
-            where: { is_deleted:0}, //Agregue esto 19/11/25
-
-            // 'attributes.exclude' previene que campos sensibles sean enviados al cliente.
-            attributes: { exclude: ['contraseña', 'rol_id'] },
-            // Se incluye el modelo Rol para obtener el nombre del rol asociado.
+        const usuarios = await Usuario.findAll({
+            where: { is_deleted: 0 },
+            attributes: { exclude: ['contraseña'] },
             include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
         });
-        
-        // Se mapea la respuesta para limpiarla y simplificar su estructura para el frontend.
+
         const respuesta = usuarios.map(u => ({
             usuario_id: u.usuario_id,
             nombre: u.nombre,
             correo: u.correo,
-            rol: u.Rol.nombre_rol
+            rol_id: u.rol_id, // 🚀 AGREGAMOS ESTO PARA EL FRONTEND
+            rol: u.Rol ? u.Rol.nombre_rol : 'Sin Rol'
         }));
-        res.status(200).send(respuesta);
+
+        res.status(200).json(respuesta);
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
-/**
- * Obtiene un usuario específico por su ID.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
-export const getUserById = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const usuario = await db.Usuario.findByPk(id, {
-            attributes: { exclude: ['contraseña', 'rol_id'] },
-            include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
-        });
-        
-        if (usuario) {
-            // Se reestructura la respuesta para que sea consistente.
-            const respuesta = {
-                usuario_id: usuario.usuario_id,
-                nombre: usuario.nombre,
-                correo: usuario.correo,
-                rol: usuario.Rol.nombre_rol
-            };
-            res.status(200).send(respuesta);
-        } else {
-            res.status(404).send({ message: `Usuario con id=${id} no encontrado.` });
-        }
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
-};
-
-/**
- * Actualiza la información de un usuario (nombre y correo).
- * No permite actualizar el rol ni la contraseña desde este endpoint.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
-export const updateUser = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { nombre, correo } = req.body; 
-
-        const [num] = await db.Usuario.update({ nombre, correo }, {
-            where: { usuario_id: id }
-        });
-
-        if (num == 1) {
-            res.send({ message: "Usuario actualizado exitosamente." });
-        } else {
-            res.status(404).send({ message: `No se pudo actualizar el usuario con id=${id}. Quizás no fue encontrado o no hubo cambios.` });
-        }
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
-};
-
-/**
- * Elimina un usuario de la base de datos.
- * @param {object} req - El objeto de la petición de Express.
- * @param {object} res - El objeto de la respuesta de Express.
- */
-
-// activar delete delsde el backend
+/* =====================================================
+   SOFT DELETE (Mover a papelera)
+===================================================== */
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const num = await Usuario.destroy({
-            where: { usuario_id: id }
-        });
+        // Buscamos al usuario (incluso si Sequelize lo ocultaba por tener fecha en deleted_at)
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
-        res.json({
-            message: num === 1
-                ? "Usuario eliminado correctamente (soft delete)."
-                : "Usuario no encontrado."
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        // Forzamos el cambio de estado y la fecha de eliminación
+        usuario.is_deleted = 1;
+        usuario.deleted_at = new Date();
+
+        // Guardamos los cambios físicamente en la base de datos
+        await usuario.save();
+
+        res.json({ 
+            message: "Usuario enviado a la papelera.",
+            id_eliminado: id 
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error al eliminar usuario." });
+        console.error("Error al eliminar:", error);
+        res.status(500).json({ message: "Error al procesar la eliminación." });
     }
 };
-
-
-/**
- * Restaura un usuario eliminado (soft delete).
- * @param {object} req
- * @param {object} res
- */
+/* =====================================================
+   RESTORE USER (Sacar de papelera)
+===================================================== */
 export const restoreUser = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const usuario = await Usuario.findByPk(id, {
-            paranoid: false
-        });
+        // Buscamos al usuario ignorando el filtro de borrado
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
         if (!usuario) {
-            return res.status(404).json({
-                message: "Usuario no encontrado."
-            });
+            return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
-        await usuario.restore();
+        // Restauramos los valores originales
+        usuario.is_deleted = 0;
+        usuario.deleted_at = null;
 
-        res.json({
-            message: "Usuario restaurado correctamente."
-        });
+        await usuario.save();
 
+        res.json({ message: "Usuario restaurado con éxito" });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            message: "Error al restaurar usuario."
-        });
+        res.status(500).json({ message: "Error al restaurar el usuario" });
     }
 };
 
+/* =====================================================
+   HARD DELETE (Borrado físico)
+===================================================== */
 export const deleteUserPermanent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deletedRows = await Usuario.destroy({
-            where: { usuario_id: id },
-            force: true   // ESTO HACE HARD DELETE
-        });
+        // Buscamos al usuario incluyendo los que ya están en la papelera
+        const usuario = await Usuario.findByPk(id, { paranoid: false });
 
-        if (deletedRows === 1) {
-            return res.json({
-                message: "Usuario eliminado definitivamente de la base de datos."
-            });
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
-        return res.status(404).json({
-            message: "Usuario no encontrado."
-        });
+        // 🚀 FORCE: TRUE es la clave aquí para el borrado físico
+        await usuario.destroy({ force: true });
 
+        res.json({ message: "Usuario eliminado permanentemente de la base de datos" });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            message: "Error al eliminar definitivamente el usuario."
-        });
+        res.status(500).json({ message: "Error al eliminar definitivamente" });
     }
 };
 
 
+// --- FUNCIÓN PARA ACTUALIZAR SOLO EL ROL ---
+// Añade esta función al final de tu controlador
+export const updateUsuarioRol = async (req, res) => {
+    try {
+        const { id } = req.params; // El ID del usuario
+        const { rol_id } = req.body; // El nuevo ID del rol (1, 2 o 3)
 
+        // 1. Buscamos al usuario
+        const usuario = await Usuario.findByPk(id);
+
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // 2. Actualizamos solo el campo necesario
+        usuario.rol_id = rol_id;
+        await usuario.save();
+
+        // 3. Respondemos al frontend
+        res.json({ 
+            success: true, 
+            message: "Rol actualizado correctamente" 
+        });
+    } catch (error) {
+        console.error('Error al actualizar rol:', error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+
+
+/* =====================================================
+   CAMBIAR CONTRASEÑA, ACTUALIZAR Y GET BY ID (SIN CAMBIOS)
+===================================================== */
+export const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuario = await Usuario.findByPk(id, {
+            include: [{ model: db.Rol, attributes: ['nombre_rol'] }]
+        });
+        if (!usuario) return res.status(404).json({ message: "No encontrado." });
+        res.json({
+            usuario_id: usuario.usuario_id,
+            nombre: usuario.nombre,
+            correo: usuario.correo,
+            rol: usuario.Rol ? usuario.Rol.nombre_rol : 'Sin Rol'
+        });
+    } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+export const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, correo } = req.body;
+        const [num] = await Usuario.update({ nombre, correo }, { where: { usuario_id: id } });
+        res.json({ message: num === 1 ? "Actualizado." : "Sin cambios." });
+    } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+export const changePassword = async (req, res) => {
+    try {
+        const { usuario_id, nuevaContraseña } = req.body;
+
+        if (!nuevaContraseña || nuevaContraseña.length < 8) {
+            return res.status(400).json({ message: "Mínimo 8 caracteres." });
+        }
+
+        const usuario = await Usuario.findByPk(usuario_id);
+        if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+        const salt = await bcrypt.genSalt(10);
+        usuario.contraseña = await bcrypt.hash(nuevaContraseña, salt);
+        usuario.must_change_password = false; // Ya no es temporal
+        
+        await usuario.save();
+        res.json({ message: "Contraseña actualizada con éxito." });
+    } catch (error) {
+        res.status(500).json({ message: "Error al procesar el cambio." });
+    }
+};
