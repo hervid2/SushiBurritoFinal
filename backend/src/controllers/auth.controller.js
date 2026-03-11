@@ -317,36 +317,36 @@ export const resetPassword = async (req, res) => {
     }
 };
 
-/* =====================================================
-    REFRESH TOKEN
-===================================================== */
-export const refreshToken = async (req, res) => {
-    const { refreshToken } = req.body;
+// /* =====================================================
+//     REFRESH TOKEN
+// ===================================================== */
+// export const refreshToken = async (req, res) => {
+//     const { refreshToken } = req.body;
 
-    if (!refreshToken) {
-        return res.status(401).json({
-            message: "Refresh Token requerido."
-        });
-    }
+//     if (!refreshToken) {
+//         return res.status(401).json({
+//             message: "Refresh Token requerido."
+//         });
+//     }
 
-    try {
-        const decoded = jwt.verify(
-            refreshToken,
-            process.env.REFRESH_TOKEN_SECRET
-        );
+//     try {
+//         const decoded = jwt.verify(
+//             refreshToken,
+//             process.env.REFRESH_TOKEN_SECRET
+//         );
 
-        const newAccessToken = jwt.sign(
-            { id: decoded.id },
-            process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: '15m' }
-        );
+//         const newAccessToken = jwt.sign(
+//             { id: decoded.id },
+//             process.env.ACCESS_TOKEN_SECRET,
+//             { expiresIn: '15m' }
+//         );
 
-        res.status(200).json({
-            accessToken: newAccessToken
-        });
+//         res.status(200).json({
+//             accessToken: newAccessToken
+//         });
 
-    } catch (error) {
-        console.error("🔥 ERROR REFRESH TOKEN:", error.message);
-        res.status(500).json({ message: "Sesión expirada o token inválido." });
-    }
-};
+//     } catch (error) {
+//         console.error("🔥 ERROR REFRESH TOKEN:", error.message);
+//         res.status(500).json({ message: "Sesión expirada o token inválido." });
+//     }
+// };
