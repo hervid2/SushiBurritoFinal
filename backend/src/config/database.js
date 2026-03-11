@@ -39,6 +39,7 @@ const sequelize = new Sequelize(
         // dialect: Especifica el tipo de SQL que se usará. Es crucial para que Sequelize
         // genere las consultas correctas.
         dialect: 'mysql',
+        // logging: false, para limpiar la consola
     }
 );
 

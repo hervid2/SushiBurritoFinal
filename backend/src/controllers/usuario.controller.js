@@ -21,11 +21,11 @@ export const createUser = async (req, res) => {
 
         // Generamos la clave legible para el email
         const contraseñaPlana = crypto.randomBytes(3).toString('hex');
-        console.log("🔐 CLAVE TEMPORAL GENERADA:", contraseñaPlana);
+        // console.log("🔐 CLAVE TEMPORAL GENERADA:", contraseñaPlana);
 
         // 🚀 ENCRIPTAMOS para que el Login no dé Error 401
         const salt = await bcrypt.genSalt(10);
-        const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
+        // const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
 
         await Usuario.create({
             nombre,

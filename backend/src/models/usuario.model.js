@@ -30,7 +30,7 @@ export default (sequelize, DataTypes) => {
             allowNull: false,
             defaultValue: true
         },
-        // 🔥 AGREGAMOS ESTE CAMPO (Faltaba en tu código)
+       
         is_deleted: {
             type: DataTypes.INTEGER,
             allowNull: false,
@@ -40,7 +40,7 @@ export default (sequelize, DataTypes) => {
             type: DataTypes.DATE,
             allowNull: true
         }
-    // ... (resto del código igual hasta las opciones del modelo)
+    
     }, {
         tableName: 'usuarios',
         timestamps: true,
