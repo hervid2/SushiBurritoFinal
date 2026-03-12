@@ -25,7 +25,7 @@ export const createUser = async (req, res) => {
 
         // 🚀 ENCRIPTAMOS para que el Login no dé Error 401
         const salt = await bcrypt.genSalt(10);
-        // const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
+        const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
 
         await Usuario.create({
             nombre,
