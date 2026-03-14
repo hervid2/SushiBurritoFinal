@@ -15,7 +15,11 @@ export const sendTemporaryPasswordEmail = async (to, temporaryPassword) => {
             auth: {
                 user: emailUser,
                 pass: emailPassword
-            }
+            },
+            // Evita que la petición HTTP quede colgada hasta provocar 504 en el proxy.
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000
         });
 
         const info = await transporter.sendMail({
@@ -54,6 +58,6 @@ export const sendTemporaryPasswordEmail = async (to, temporaryPassword) => {
 
     } catch (error) {
         console.error("Error enviando correo:", error.message);
-        throw new Error(`No se pudo enviar el correo: ${error.message}`);
+        throw new Error(`No se pudo enviar el correo (${error.code || 'SMTP_ERROR'}): ${error.message}`);
     }
 };
