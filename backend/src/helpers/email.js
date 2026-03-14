@@ -5,13 +5,15 @@ export const sendTemporaryPasswordEmail = async (to, temporaryPassword) => {
         const emailService = process.env.EMAIL_SERVICE || 'gmail';
         const emailUser = process.env.EMAIL_USER;
         const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+        const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+        const emailPort = Number(process.env.EMAIL_PORT || 465);
+        const emailSecure = String(process.env.EMAIL_SECURE || 'true').toLowerCase() === 'true';
 
         if (!emailUser || !emailPassword) {
             throw new Error('Configuración SMTP incompleta: define EMAIL_USER y EMAIL_PASSWORD en backend/.env');
         }
 
-        const transporter = nodemailer.createTransport({
-            service: emailService,
+        const baseTransport = {
             auth: {
                 user: emailUser,
                 pass: emailPassword
@@ -20,7 +22,21 @@ export const sendTemporaryPasswordEmail = async (to, temporaryPassword) => {
             connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 15000
-        });
+        };
+
+        const transporter = nodemailer.createTransport(
+            process.env.EMAIL_HOST || process.env.EMAIL_PORT || process.env.EMAIL_SECURE
+                ? {
+                    ...baseTransport,
+                    host: emailHost,
+                    port: emailPort,
+                    secure: emailSecure
+                }
+                : {
+                    ...baseTransport,
+                    service: emailService
+                }
+        );
 
         const info = await transporter.sendMail({
             from: `"Sistema" <${emailUser}>`,
