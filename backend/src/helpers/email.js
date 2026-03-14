@@ -2,20 +2,24 @@ import nodemailer from 'nodemailer';
 
 export const sendTemporaryPasswordEmail = async (to, temporaryPassword) => {
     try {
+        const emailService = process.env.EMAIL_SERVICE || 'gmail';
+        const emailUser = process.env.EMAIL_USER;
+        const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
 
-        console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+        if (!emailUser || !emailPassword) {
+            throw new Error('Configuración SMTP incompleta: define EMAIL_USER y EMAIL_PASSWORD en backend/.env');
+        }
 
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            service: emailService,
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS // Contraseña de aplicación de Gmail
+                user: emailUser,
+                pass: emailPassword
             }
         });
 
         const info = await transporter.sendMail({
-            from: `"Sistema" <${process.env.EMAIL_USER}>`,
+            from: `"Sistema" <${emailUser}>`,
             to,
             subject: 'Tu contraseña temporal',
             html: `
@@ -46,10 +50,10 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
             `
         });
 
-        console.log("Correo enviado correctamente:", info.messageId);
+        return info;
 
     } catch (error) {
-        console.error("Error enviando correo:", error);
-        throw new Error("No se pudo enviar el correo.");
+        console.error("Error enviando correo:", error.message);
+        throw new Error(`No se pudo enviar el correo: ${error.message}`);
     }
 };

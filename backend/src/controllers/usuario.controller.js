@@ -21,9 +21,9 @@ export const createUser = async (req, res) => {
 
         // Generamos la clave legible para el email
         const contraseñaPlana = crypto.randomBytes(3).toString('hex');
-        // console.log("🔐 CLAVE TEMPORAL GENERADA:", contraseñaPlana);
+        // console.log(" CLAVE TEMPORAL GENERADA:", contraseñaPlana);
 
-        // 🚀 ENCRIPTAMOS para que el Login no dé Error 401
+        // ENCRIPTAMOS para que el Login no dé Error 401
         const salt = await bcrypt.genSalt(10);
         const contraseñaHasheada = await bcrypt.hash(contraseñaPlana, salt);
 
@@ -37,9 +37,14 @@ export const createUser = async (req, res) => {
         });
 
         // Enviamos la PLANA al correo
-        await sendTemporaryPasswordEmail(correo, contraseñaPlana);
-
-        res.status(201).json({ message: "Usuario creado. Revisa el correo." });
+        try {
+            await sendTemporaryPasswordEmail(correo, contraseñaPlana);
+            return res.status(201).json({ message: "Usuario creado. Revisa el correo." });
+        } catch (emailError) {
+            return res.status(201).json({
+                message: "Usuario creado, pero no fue posible enviar el correo automático. Verifica configuración SMTP (EMAIL_USER/EMAIL_PASSWORD)."
+            });
+        }
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error al crear usuario." });

@@ -230,8 +230,10 @@ if (target.classList.contains('edit-btn')) {
                     await api.put(`usuarios/${id}`, payload);
                     showAlert('Actualizado con éxito', 'success');
                 } else {
-                    await api.post('usuarios', payload);
-                    showAlert('Creado con éxito', 'success');
+                    const createResponse = await api.post('usuarios', payload);
+                    const creationMessage = createResponse?.message || 'Creado con éxito';
+                    const creationAlertType = creationMessage.includes('no fue posible enviar el correo') ? 'warning' : 'success';
+                    showAlert(creationMessage, creationAlertType);
                 }
                 userFormSection.style.display = 'none';
                 loadUsers(isTrashMode);
