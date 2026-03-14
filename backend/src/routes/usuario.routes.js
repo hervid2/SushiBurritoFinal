@@ -44,14 +44,6 @@ router.get('/', [verifyToken, isAdmin], usuarioController.getAllUsers);
 
 
 /* =====================================================
-   CAMBIAR CONTRASEÑA (PRIMER LOGIN)
-===================================================== */
-
-// 🔥 Este endpoint lo usa el usuario después de loguearse
-router.post('/change-password', verifyToken, usuarioController.changePassword);
-
-
-/* =====================================================
    RUTAS CON :id (SIEMPRE AL FINAL)
 ===================================================== */
 

@@ -106,8 +106,16 @@ export const loadContent = async () => {
         : window.location.hash.substring(1);
     const pathParts = fullHash.split('?');
     const path = pathParts[0] || "/";
-    const queryString = pathParts[1] || "";
-    const urlParams = new URLSearchParams(queryString);
+    const hashQueryString = pathParts[1] || "";
+    const urlParams = new URLSearchParams(hashQueryString);
+    const searchParams = new URLSearchParams(window.location.search);
+
+    for (const [key, value] of searchParams.entries()) {
+        if (!urlParams.has(key)) {
+            urlParams.set(key, value);
+        }
+    }
+
     const params = Object.fromEntries(urlParams.entries());
 
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -117,6 +125,11 @@ export const loadContent = async () => {
     // 3. REGLA DE PROTECCIÓN: Si tiene ID temporal, FORZAR cambio de contraseña
     if (tempUserId && path !== 'change-password') {
         navigateTo('change-password');
+        return;
+    }
+
+    if ((path === "" || path === "/") && params.token) {
+        navigateTo(`reset-password?token=${encodeURIComponent(params.token)}`);
         return;
     }
 

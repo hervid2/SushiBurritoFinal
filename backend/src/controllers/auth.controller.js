@@ -27,6 +27,17 @@ const createAccessToken = (userId) => {
     });
 };
 
+const buildResetPasswordLink = (token) => {
+    const fallbackBase = `${env.frontendOrigins?.[0] || 'http://localhost:5173'}/#/reset-password`;
+    const configuredBase = (env.resetPasswordUrl || fallbackBase).trim();
+    const normalizedBase = configuredBase.includes('#')
+        ? configuredBase
+        : `${configuredBase.replace(/\/+$/, '')}/#/reset-password`;
+    const separator = normalizedBase.includes('?') ? '&' : '?';
+
+    return `${normalizedBase}${separator}token=${encodeURIComponent(token)}`;
+};
+
 /**
  * Crea un refresh token con identificador único de sesión para permitir rotación.
  * @param {number} userId - Identificador del usuario autenticado.
@@ -78,6 +89,42 @@ const clearRefreshCookie = (res) => {
 
 const Usuario = db.Usuario;
 
+const sendPasswordResetEmail = async (to, resetLink) => {
+    const emailService = process.env.EMAIL_SERVICE || 'gmail';
+    const emailUser = process.env.EMAIL_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+
+    if (!emailUser || !emailPassword) {
+        throw new Error('Configuración SMTP incompleta: define EMAIL_USER y EMAIL_PASSWORD.');
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: emailService,
+        auth: {
+            user: emailUser,
+            pass: emailPassword
+        }
+    });
+
+    await transporter.sendMail({
+        from: `"Sistema" <${emailUser}>`,
+        to,
+        subject: 'Restablece tu contraseña',
+        html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+                <h2>Recuperación de contraseña</h2>
+                <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+                <p>
+                    <a href="${resetLink}" style="display:inline-block;padding:10px 16px;background:#ff5f1f;color:#fff;text-decoration:none;border-radius:6px;">
+                        Restablecer contraseña
+                    </a>
+                </p>
+                <p>Si no solicitaste este cambio, ignora este mensaje.</p>
+            </div>
+        `
+    });
+};
+
 /* =====================================================
     LOGIN
 ===================================================== */
@@ -100,6 +147,18 @@ export const login = async (req, res) => {
             contraseña,
             usuario.contraseña
         );
+
+        if (!passwordIsValid) {
+            return res.status(401).json({ message: "Contraseña inválida." });
+        }
+
+        if (usuario.must_change_password) {
+            return res.status(200).json({
+                mustChangePassword: true,
+                usuario_id: usuario.usuario_id,
+                message: "Debes cambiar tu contraseña temporal para continuar."
+            });
+        }
 
         // Se genera un token de acceso y un refresh token rotativo asociado a sesión.
         const accessToken = createAccessToken(usuario.usuario_id);
@@ -251,21 +310,29 @@ export const logout = async (req, res) => {
 export const forgotPassword = async (req, res) => {
     const { correo } = req.body;
 
-    try {
-        const { usuario_id, nuevaContraseña } = req.body;
+    if (!correo) {
+        return res.status(400).json({ message: 'El correo es requerido.' });
+    }
 
-        if (!usuario_id || !nuevaContraseña) {
-            return res.status(400).json({ 
-                message: "ID de usuario y nueva contraseña son requeridos." 
-            });
+    try {
+        const usuario = await Usuario.findOne({
+            where: { correo },
+            attributes: ['usuario_id', 'correo']
+        });
+
+        // Respuesta genérica por seguridad para no filtrar existencia del correo.
+        if (!usuario) {
+            return res.status(200).send({ message: "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña." });
         }
 
-        // 1. Encriptar la nueva contraseña aquí
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(nuevaContraseña, salt);
+        const resetToken = jwt.sign(
+            { id: usuario.usuario_id, type: 'password_reset' },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: '30m' }
+        );
 
-        // Se construye el enlace que apunta a la vista del frontend.
-        const resetLink = `${env.resetPasswordUrl}?token=${resetToken}`;
+        // Se construye el enlace que apunta a la vista hash del frontend (SPA).
+        const resetLink = buildResetPasswordLink(resetToken);
     
         await sendPasswordResetEmail(usuario.correo, resetLink); 
         
@@ -293,13 +360,17 @@ export const resetPassword = async (req, res) => {
     try {
         // Se verifica la validez y expiración del token.
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+        if (decoded.type !== 'password_reset') {
+            return res.status(400).json({ message: 'Token inválido para restablecimiento de contraseña.' });
+        }
         
         // Se hashea la nueva contraseña antes de guardarla.
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         // Se actualiza la contraseña del usuario en la base de datos.
-        const updated = await db.Usuario.update(
-            { contraseña: hashedPassword },
+        const [rowsUpdated] = await db.Usuario.update(
+            { contraseña: hashedPassword, must_change_password: false },
             { where: { usuario_id: decoded.id } }
         );
 
@@ -346,7 +417,7 @@ export const resetPassword = async (req, res) => {
 //         });
 
 //     } catch (error) {
-//         console.error("🔥 ERROR REFRESH TOKEN:", error.message);
+//         console.error(" ERROR REFRESH TOKEN:", error.message);
 //         res.status(500).json({ message: "Sesión expirada o token inválido." });
 //     }
 // };
