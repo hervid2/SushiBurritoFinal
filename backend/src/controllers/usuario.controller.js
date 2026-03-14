@@ -39,10 +39,15 @@ export const createUser = async (req, res) => {
         // Enviamos la PLANA al correo
         try {
             await sendTemporaryPasswordEmail(correo, contraseñaPlana);
-            return res.status(201).json({ message: "Usuario creado. Revisa el correo." });
-        } catch (emailError) {
             return res.status(201).json({
-                message: "Usuario creado, pero no fue posible enviar el correo automático. Verifica configuración SMTP (EMAIL_USER/EMAIL_PASSWORD)."
+                message: "Usuario creado. Revisa el correo.",
+                emailSent: true
+            });
+        } catch (emailError) {
+            console.error(`Error SMTP al crear usuario ${correo}:`, emailError.message);
+            return res.status(201).json({
+                message: "Usuario creado, pero no fue posible enviar el correo automático. Verifica configuración SMTP (EMAIL_USER/EMAIL_PASSWORD).",
+                emailSent: false
             });
         }
     } catch (error) {
