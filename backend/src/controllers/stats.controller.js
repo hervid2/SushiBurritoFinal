@@ -183,6 +183,7 @@ export const sendStatisticsReport = async (req, res) => {
         await sendEmailWithAttachment(admin.correo, pdfBuffer, startDate, endDate);
         res.status(200).send({ message: `Reporte enviado exitosamente a ${admin.correo}` });
     } catch (error) {
+        console.error('Error al enviar reporte de estadísticas por correo:', error.message);
         res.status(500).send({ message: "Error al procesar el reporte." });
     }
 };
@@ -239,17 +240,84 @@ export const getRecentActivity = async (req, res) => {
  * Función auxiliar para enviar un correo con un archivo adjunto.
  */
 async function sendEmailWithAttachment(recipientEmail, pdfBuffer, startDate, endDate) {
-    const transporter = nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE,
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD }
-    });
+    const mailProvider = String(process.env.MAIL_PROVIDER || 'smtp').toLowerCase();
+    const emailService = process.env.EMAIL_SERVICE || 'gmail';
+    const emailUser = process.env.EMAIL_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+    const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+    const emailPort = Number(process.env.EMAIL_PORT || 465);
+    const emailSecure = String(process.env.EMAIL_SECURE || 'true').toLowerCase() === 'true';
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const emailFrom = process.env.EMAIL_FROM || emailUser;
+
+    const subject = `Reporte de (${startDate} a ${endDate})`;
+    const text = 'Adjunto encontrarás el reporte de estadísticas de ventas generado para el periodo seleccionado.';
+    const filename = `reporte_${startDate}_${endDate}.pdf`;
+
+    if (mailProvider === 'resend') {
+        if (!resendApiKey || !emailFrom) {
+            throw new Error('Configuración Resend incompleta: define RESEND_API_KEY y EMAIL_FROM en backend/.env');
+        }
+
+        const resendResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${resendApiKey}`
+            },
+            body: JSON.stringify({
+                from: emailFrom,
+                to: [recipientEmail],
+                subject,
+                text,
+                attachments: [{
+                    filename,
+                    content: pdfBuffer.toString('base64'),
+                    content_type: 'application/pdf'
+                }]
+            })
+        });
+
+        const resendBody = await resendResponse.json().catch(() => ({}));
+        if (!resendResponse.ok) {
+            throw new Error(`Resend ${resendResponse.status}: ${resendBody.message || resendBody.error || 'No fue posible enviar el reporte.'}`);
+        }
+
+        return;
+    }
+
+    if (!emailUser || !emailPassword) {
+        throw new Error('Configuración SMTP incompleta: define EMAIL_USER y EMAIL_PASSWORD en backend/.env');
+    }
+
+    const baseTransport = {
+        auth: { user: emailUser, pass: emailPassword },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+    };
+
+    const transporter = nodemailer.createTransport(
+        process.env.EMAIL_HOST || process.env.EMAIL_PORT || process.env.EMAIL_SECURE
+            ? {
+                ...baseTransport,
+                host: emailHost,
+                port: emailPort,
+                secure: emailSecure
+            }
+            : {
+                ...baseTransport,
+                service: emailService
+            }
+    );
+
     await transporter.sendMail({
-        from: `"Reporte ventas y estadísticas Sushi Burrito" <${process.env.EMAIL_USER}>`,
+        from: `"Reporte ventas y estadísticas Sushi Burrito" <${emailFrom}>`,
         to: recipientEmail,
-        subject: `Reporte de (${startDate} a ${endDate})`,
-        text: 'Adjunto encontrarás el reporte de estadísticas de ventas generado para el periodo seleccionado.',
+        subject,
+        text,
         attachments: [{
-            filename: `reporte_${startDate}_${endDate}.pdf`,
+            filename,
             content: pdfBuffer,
             contentType: 'application/pdf'
         }]
