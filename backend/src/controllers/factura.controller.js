@@ -249,21 +249,87 @@ async function createInvoicePdfBuffer(factura) {
  * @param {number} invoiceId - El ID de la factura para el asunto y nombre del archivo.
  */
 async function sendEmailWithAttachment(recipientEmail, pdfBuffer, invoiceId) {
-    const transporter = nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE,
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
+    const mailProvider = String(process.env.MAIL_PROVIDER || 'smtp').toLowerCase();
+    const emailService = process.env.EMAIL_SERVICE || 'gmail';
+    const emailUser = process.env.EMAIL_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+    const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+    const emailPort = Number(process.env.EMAIL_PORT || 465);
+    const emailSecure = String(process.env.EMAIL_SECURE || 'true').toLowerCase() === 'true';
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const emailFrom = process.env.EMAIL_FROM || emailUser;
+
+    const subject = `Tu Factura #${invoiceId} de Sushi Burrito`;
+    const text = '¡Gracias por tu compra! Adjunto encontrarás tu factura en formato PDF.';
+    const filename = `factura_${invoiceId}.pdf`;
+
+    if (mailProvider === 'resend') {
+        if (!resendApiKey || !emailFrom) {
+            throw new Error('Configuración Resend incompleta: define RESEND_API_KEY y EMAIL_FROM en backend/.env');
         }
-    });
+
+        const resendResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${resendApiKey}`
+            },
+            body: JSON.stringify({
+                from: emailFrom,
+                to: [recipientEmail],
+                subject,
+                text,
+                attachments: [{
+                    filename,
+                    content: pdfBuffer.toString('base64'),
+                    content_type: 'application/pdf'
+                }]
+            })
+        });
+
+        const resendBody = await resendResponse.json().catch(() => ({}));
+        if (!resendResponse.ok) {
+            throw new Error(`Resend ${resendResponse.status}: ${resendBody.message || resendBody.error || 'No fue posible enviar la factura.'}`);
+        }
+
+        return;
+    }
+
+    if (!emailUser || !emailPassword) {
+        throw new Error('Configuración SMTP incompleta: define EMAIL_USER y EMAIL_PASSWORD en backend/.env');
+    }
+
+    const baseTransport = {
+        auth: {
+            user: emailUser,
+            pass: emailPassword
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+    };
+
+    const transporter = nodemailer.createTransport(
+        process.env.EMAIL_HOST || process.env.EMAIL_PORT || process.env.EMAIL_SECURE
+            ? {
+                ...baseTransport,
+                host: emailHost,
+                port: emailPort,
+                secure: emailSecure
+            }
+            : {
+                ...baseTransport,
+                service: emailService
+            }
+    );
 
     await transporter.sendMail({
-        from: `"Facturación Sushi Burrito" <${process.env.EMAIL_USER}>`,
+        from: `"Facturación Sushi Burrito" <${emailFrom}>`,
         to: recipientEmail,
-        subject: `Tu Factura #${invoiceId} de Sushi Burrito`,
-        text: '¡Gracias por tu compra! Adjunto encontrarás tu factura en formato PDF.',
+        subject,
+        text,
         attachments: [{
-            filename: `factura_${invoiceId}.pdf`,
+            filename,
             content: pdfBuffer,
             contentType: 'application/pdf'
         }]
