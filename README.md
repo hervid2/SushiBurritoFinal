@@ -37,6 +37,98 @@ Este repositorio contiene el código fuente completo para un sistema de gestión
 
 ---
 
+## 🏗️ Arquitectura y Despliegue
+
+La aplicación se despliega en dos proveedores distintos: el **frontend** como sitio estático en **Vercel**, y el **backend junto con la base de datos** en un único **droplet de DigitalOcean**.
+
+| Componente | Proveedor | Detalle |
+| --- | --- | --- |
+| Frontend (SPA) | **Vercel** | [`sushi-burrito-final.vercel.app`](https://sushi-burrito-final.vercel.app) — build estático de Vite servido por CDN, con HTTPS y despliegue automático desde la rama principal. |
+| API REST + WebSocket | **DigitalOcean** (droplet) | [`api-sushi-burrito.hernan-cardona.com`](https://api-sushi-burrito.hernan-cardona.com) — Node.js/Express en el puerto interno `4001`, detrás de Nginx (TLS de Let's Encrypt vía Certbot) y mantenido vivo por PM2 como `sushi-burrito-api`. |
+| Base de datos | **DigitalOcean** (mismo droplet) | MySQL instalado en la misma máquina, accesible únicamente desde `localhost`. No está expuesto a internet. |
+
+### Diagrama
+
+```mermaid
+flowchart TB
+    subgraph browser["Navegador del usuario"]
+        SPA["SPA Vanilla JS + Vite<br/>Administrador - Mesero - Cocinero"]
+    end
+
+    subgraph vercel["Vercel"]
+        CDN["Build estatico de Vite<br/>sushi-burrito-final.vercel.app"]
+    end
+
+    subgraph droplet["DigitalOcean - Droplet Ubuntu"]
+        NGINX["Nginx :443 - Certbot<br/>api-sushi-burrito.hernan-cardona.com"]
+        NODE["Node.js / Express :4001<br/>gestionado por PM2"]
+        MYSQL[("MySQL :3306<br/>solo localhost")]
+    end
+
+    SPA -->|"HTML, JS, CSS"| CDN
+    SPA -->|"HTTPS - REST /api/*<br/>credentials: include"| NGINX
+    SPA <-->|"WSS - Socket.IO"| NGINX
+    NGINX -->|"proxy_pass 127.0.0.1:4001"| NODE
+    NODE -->|"Sequelize"| MYSQL
+```
+
+El vhost de Nginx vive en `/etc/nginx/sites-enabled/api-sushi-burrito`: escucha en 443 con certificado de Let's Encrypt y hace `proxy_pass` a `http://localhost:4001`.
+
+### Flujo de una petición
+
+1. El navegador descarga la SPA desde el CDN de Vercel.
+2. La SPA llama a la API usando `VITE_API_URL`, que apunta al dominio público del backend.
+3. Nginx termina TLS en el puerto 443 y hace `proxy_pass` a `127.0.0.1:4001`.
+4. Express valida el JWT y consulta MySQL en `localhost` a través de Sequelize.
+5. Socket.IO mantiene una conexión WSS por ese mismo Nginx, que debe reenviar las cabeceras `Upgrade` y `Connection` para que el handshake funcione.
+
+Como el frontend y la API viven en dominios distintos, todas las llamadas son **cross-origin**: el backend debe incluir el origen de Vercel en `FRONTEND_URL` para que CORS acepte peticiones con credenciales.
+
+### Variables de entorno en producción
+
+En el **droplet** (`backend/.env`), los valores que cambian respecto al entorno local:
+
+```env
+NODE_ENV=production
+PORT=4001
+
+DB_HOST=localhost
+DB_PORT=3306
+
+# Origen del frontend en Vercel (acepta varios separados por coma)
+FRONTEND_URL=https://sushi-burrito-final.vercel.app
+RESET_PASSWORD_URL=https://sushi-burrito-final.vercel.app/#/reset-password
+
+# La cookie de refresh solo viaja por HTTPS
+REFRESH_COOKIE_SECURE=true
+REFRESH_COOKIE_SAME_SITE=none
+```
+
+En **Vercel** (Project Settings -> Environment Variables):
+
+```env
+VITE_API_URL=https://api-sushi-burrito.hernan-cardona.com/api
+VITE_SOCKET_URL=https://api-sushi-burrito.hernan-cardona.com
+```
+
+> **Por qué `REFRESH_COOKIE_SAME_SITE=none`:** el dominio `vercel.app` figura en la [Public Suffix List](https://publicsuffix.org/), así que `sushi-burrito-final.vercel.app` es un dominio registrable independiente de `hernan-cardona.com`. Frontend y API son, por tanto, *cross-site*, y el navegador solo adjunta la cookie `refreshToken` en las peticiones XHR si el valor es `none` — que a su vez exige `REFRESH_COOKIE_SECURE=true`. Con `lax` el login funciona igual, pero la renovación silenciosa falla y la sesión se cae al expirar el access token a los 15 minutos.
+
+### Despliegue del backend
+
+El código vive en `/var/www/SushiBurritoFinal/backend` dentro del droplet:
+
+```bash
+cd /var/www/SushiBurritoFinal/backend
+git pull
+npm install --omit=dev
+pm2 restart sushi-burrito-api
+pm2 logs sushi-burrito-api   # verifica el arranque
+```
+
+Para poblar o reparar los usuarios iniciales, define las variables `SEED_*` descritas en `backend/.env.example` y ejecuta `npm run db:seed`.
+
+---
+
 ## ⚙️ Instalación y Configuración
 
 Para poner en marcha el proyecto, necesitarás clonar este repositorio y configurar tanto el backend como el frontend por separado.
